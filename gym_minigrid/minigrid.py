@@ -539,9 +539,22 @@ class MiniGridEnv(gym.Env):
         # Wait/stay put/do nothing
         wait = 4
 
-    def __init__(self, gridSize=16, maxSteps=100):
+    class ActionsNoOrient(IntEnum):
+
+        # 4 dim rotation
+        move_left = 0 #distinct from rotating_left
+        move_right = 1
+        move_up = 2
+        move_down = 3
+
+    def __init__(self, gridSize=16, maxSteps=100, orientation_mode = True):
+        self.orientation_mode = orientation_mode
+
         # Action enumeration for this environment
-        self.actions = MiniGridEnv.Actions
+        if not orientation_mode:
+            self.actions = MiniGridEnv.ActionsNoOrient
+        else:
+            self.actions = MiniGridEnv.Actions
 
         # Actions are discrete integer values
         self.action_space = spaces.Discrete(len(self.actions))
@@ -738,52 +751,73 @@ class MiniGridEnv(gym.Env):
 
     def step(self, action):
         self.stepCount += 1
+        if self.orientation_mode:
+            # Rotate left
+            if action == self.actions.left:
+                self.agentDir -= 1
+                if self.agentDir < 0:
+                    self.agentDir += 4
 
-        reward = 0
-        done = False
+            # Rotate right
+            elif action == self.actions.right:
+                self.agentDir = (self.agentDir + 1) % 4
 
-        # Rotate left
-        if action == self.actions.left:
-            self.agentDir -= 1
-            if self.agentDir < 0:
-                self.agentDir += 4
+            # Move forward
+            elif action == self.actions.forward:
+                u, v = self.getDirVec()
+                newPos = (self.agentPos[0] + u, self.agentPos[1] + v)
+                targetCell = self.grid.get(newPos[0], newPos[1])
+                if targetCell == None or targetCell.canOverlap():
+                    self.agentPos = newPos
+                elif targetCell.type == 'goal':
+                    done = True
+                    reward = 1000 - self.stepCount
 
-        # Rotate right
-        elif action == self.actions.right:
-            self.agentDir = (self.agentDir + 1) % 4
+            # Pick up or trigger/activate an item
+            elif action == self.actions.toggle:
+                u, v = self.getDirVec()
+                objPos = (self.agentPos[0] + u, self.agentPos[1] + v)
+                cell = self.grid.get(*objPos)
+                if cell and cell.canPickup():
+                    if self.carrying is None:
+                        self.carrying = cell
+                        self.grid.set(*objPos, None)
+                elif cell:
+                    cell.toggle(self, objPos)
+                elif self.carrying:
+                    self.grid.set(*objPos, self.carrying)
+                    self.carrying = None
 
-        # Move forward
-        elif action == self.actions.forward:
-            u, v = self.getDirVec()
-            newPos = (self.agentPos[0] + u, self.agentPos[1] + v)
-            targetCell = self.grid.get(newPos[0], newPos[1])
-            if targetCell == None or targetCell.canOverlap():
-                self.agentPos = newPos
-            elif targetCell.type == 'goal':
-                done = True
-                reward = 1000 - self.stepCount
+            # Wait/do nothing
+            elif action == self.actions.wait:
+                pass
 
-        # Pick up or trigger/activate an item
-        elif action == self.actions.toggle:
-            u, v = self.getDirVec()
-            objPos = (self.agentPos[0] + u, self.agentPos[1] + v)
-            cell = self.grid.get(*objPos)
-            if cell and cell.canPickup():
-                if self.carrying is None:
-                    self.carrying = cell
-                    self.grid.set(*objPos, None)
-            elif cell:
-                cell.toggle(self, objPos)
-            elif self.carrying:
-                self.grid.set(*objPos, self.carrying)
-                self.carrying = None
+            else:
+                assert False, "unknown action"
 
-        # Wait/do nothing
-        elif action == self.actions.wait:
-            pass
-
+        # No orientation mode
         else:
-            assert False, "unknown action"
+            # Move up
+            if action == self.actions.move_up:
+                delta = [0, -1]
+            # Move down
+            elif action == self.actions.move_down:
+                delta = [0, 1]
+
+            # Move left
+            elif action == self.actions.move_left:
+                delta = [-1, 0]
+
+            # Move right
+            elif action == self.actions.move_right:
+                delta = [1, 0]
+            else:
+                assert False, "unknown action"
+
+            newPos = (self.agentPos[0] + delta[0], self.agentPos[1] + delta[1])
+            done, reward = self.tryMove(newPos)
+
+
 
         if self.stepCount >= self.maxSteps:
             done = True
@@ -791,6 +825,24 @@ class MiniGridEnv(gym.Env):
         obs = self._genObs()
 
         return obs, reward, done, {}
+
+    def tryMove(self, newPos):
+        """
+        Attempt to move to agent to a new position
+        :param newPos: new position of the agent
+        :return: done: episode completion, reward: action reward
+        """
+
+        reward = 0
+        done = False
+
+        targetCell = self.grid.get(newPos[0], newPos[1])
+        if targetCell == None or targetCell.canOverlap():
+            self.agentPos = newPos
+        elif targetCell.type == 'goal':
+            done = True
+            reward = 1000 - self.stepCount
+        return done, reward
 
     def _genObs(self):
         """
