@@ -48,7 +48,8 @@ OBJECT_TO_IDX = {
     'key'           : 4,
     'ball'          : 5,
     'box'           : 6,
-    'goal'          : 7
+    'goal'          : 7,
+    'flag'          : 8,
 }
 
 IDX_TO_OBJECT = dict(zip(OBJECT_TO_IDX.values(), OBJECT_TO_IDX.keys()))
@@ -64,6 +65,7 @@ class WorldObj:
         self.type = type
         self.color = color
         self.contains = None
+        self.carryObj = None #carryable object
 
     def canOverlap(self):
         """Can the agent overlap with this?"""
@@ -80,6 +82,9 @@ class WorldObj:
     def toggle(self, env, pos):
         """Method to trigger/toggle an action this object performs"""
         return False
+    def carryableObject(self, r):
+        """carryable object that follows agent"""
+        assert False
 
     def render(self, r):
         assert False
@@ -101,6 +106,8 @@ class Goal(WorldObj):
             (CELL_PIXELS,           0),
             (0          ,           0)
         ])
+    def canOverlap(self):
+        return True
 
 class Wall(WorldObj):
     def __init__(self, color='grey'):
@@ -114,6 +121,7 @@ class Wall(WorldObj):
             (CELL_PIXELS,           0),
             (0          ,           0)
         ])
+
 
 class Door(WorldObj):
     def __init__(self, color, isOpen=False):
@@ -245,6 +253,42 @@ class Key(WorldObj):
         r.setLineColor(0, 0, 0)
         r.setColor(0, 0, 0)
         r.drawCircle(18, 9, 2)
+
+class Flag(WorldObj):
+    def __init__(self, color='blue'):
+        super(Flag, self).__init__('flag', color)
+
+    def canPickup(self):
+        return True
+
+    def render(self, r):
+        #renders the flag
+        self.carryableObject(r)
+
+    def carryableObject(self, r):
+        self._setColor(r)
+
+        # Vertical quad
+        r.drawPolygon([
+            (10, 5),
+            (12, 5),
+            (12, 28),
+            (10, 28)
+        ])
+
+        # Teeth
+        r.drawPolygon([
+            (12, 5),
+            (25, 10),
+            (12, 15),
+
+        ])
+
+        r.setLineColor(0, 0, 0)
+        r.setColor(0, 0, 0)
+
+    def canOverlap(self):
+        return True
 
 class Ball(WorldObj):
     def __init__(self, color='blue'):
@@ -751,6 +795,8 @@ class MiniGridEnv(gym.Env):
 
     def step(self, action):
         self.stepCount += 1
+        reward = 0
+        done = False
         if self.orientation_mode:
             # Rotate left
             if action == self.actions.left:
@@ -837,11 +883,15 @@ class MiniGridEnv(gym.Env):
         done = False
 
         targetCell = self.grid.get(newPos[0], newPos[1])
-        if targetCell == None or targetCell.canOverlap():
+        if targetCell == None:
             self.agentPos = newPos
         elif targetCell.type == 'goal':
             done = True
             reward = 1000 - self.stepCount
+        elif targetCell.canOverlap():
+            self.agentPos = newPos
+            if targetCell.canPickup() and self.carrying is None:
+                    self.carrying = targetCell
         return done, reward
 
     def _genObs(self):
@@ -920,6 +970,21 @@ class MiniGridEnv(gym.Env):
 
         return r.getPixmap()
 
+    def renderAgent(self, r):
+
+        r.translate(
+            CELL_PIXELS * (self.agentPos[0] + 0.5),
+            CELL_PIXELS * (self.agentPos[1] + 0.5)
+        )
+        r.rotate(self.agentDir * 90)
+        r.setLineColor(255, 0, 0)
+        r.setColor(255, 0, 0)
+        r.drawPolygon([
+            (-12, 10),
+            (12, 0),
+            (-12, -10)
+        ])
+
     def render(self, mode='human', close=False):
         """
         Render the whole-grid human view
@@ -946,18 +1011,12 @@ class MiniGridEnv(gym.Env):
 
         # Draw the agent
         r.push()
-        r.translate(
-            CELL_PIXELS * (self.agentPos[0] + 0.5),
-            CELL_PIXELS * (self.agentPos[1] + 0.5)
-        )
-        r.rotate(self.agentDir * 90)
-        r.setLineColor(255, 0, 0)
-        r.setColor(255, 0, 0)
-        r.drawPolygon([
-            (-12, 10),
-            ( 12,  0),
-            (-12, -10)
-        ])
+
+        self.renderAgent(r)
+
+        if(self.carrying):
+            self.carrying.carryableObject(r)
+
         r.pop()
 
         # Highlight what the agent can see
