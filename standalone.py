@@ -11,13 +11,15 @@ from optparse import OptionParser
 import gym_minigrid
 
 def main():
+    basic_mode = True
     parser = OptionParser()
     parser.add_option(
         "-e",
         "--env-name",
         dest="env_name",
         help="gym environment to load",
-        default='MiniGrid-MultiRoom-N6-v0'
+        default='MiniGrid-CaptureTheFlag-Basic-v0',
+        #default='MiniGrid-LockedRoom-v0',
     )
     (options, args) = parser.parse_args()
 
@@ -42,20 +44,31 @@ def main():
         if keyName == 'ESCAPE':
             sys.exit(0)
 
+
         action = 0
-        if keyName == 'LEFT':
-            action = env.actions.left
-        elif keyName == 'RIGHT':
-            action = env.actions.right
-        elif keyName == 'UP':
-            action = env.actions.forward
-        elif keyName == 'SPACE':
-            action = env.actions.toggle
-        elif keyName == 'CTRL':
-            action = env.actions.wait
+        if basic_mode:
+            if keyName == 'LEFT':
+                action = env.actions.move_left
+            elif keyName == 'RIGHT':
+                action = env.actions.move_right
+            elif keyName == 'UP':
+                action = env.actions.move_up
+            elif keyName == 'DOWN':
+                action = env.actions.move_down
         else:
-            print("unknown key %s" % keyName)
-            return
+            if keyName == 'LEFT':
+                action = env.actions.left
+            elif keyName == 'RIGHT':
+                action = env.actions.right
+            elif keyName == 'UP':
+                action = env.actions.forward
+            elif keyName == 'SPACE':
+                action = env.actions.toggle
+            elif keyName == 'CTRL':
+                action = env.actions.wait
+            else:
+                print("unknown key %s" % keyName)
+                return
 
         obs, reward, done, info = env.step(action)
 
