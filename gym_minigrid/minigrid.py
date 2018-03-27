@@ -50,6 +50,7 @@ OBJECT_TO_IDX = {
     'box'           : 6,
     'goal'          : 7,
     'flag'          : 8,
+    'lava'          : 9,
 }
 
 IDX_TO_OBJECT = dict(zip(OBJECT_TO_IDX.values(), OBJECT_TO_IDX.keys()))
@@ -108,6 +109,22 @@ class Goal(WorldObj):
         ])
     def canOverlap(self):
         return True
+
+class Lava(WorldObj):
+    def __init__(self):
+        super(Lava, self).__init__('lava', 'red')
+
+    def render(self, r):
+        self._setColor(r)
+        r.drawPolygon([
+            (0          , CELL_PIXELS),
+            (CELL_PIXELS, CELL_PIXELS),
+            (CELL_PIXELS,           0),
+            (0          ,           0)
+        ])
+    def canOverlap(self):
+        return True
+
 
 class Wall(WorldObj):
     def __init__(self, color='grey'):
@@ -547,6 +564,8 @@ class Grid:
                     v = Ball(color)
                 elif objType == 'key':
                     v = Key(color)
+                elif objType == 'flag':
+                    v = Flag(color)
                 elif objType == 'box':
                     v = Box(color)
                 elif objType == 'door':
@@ -555,6 +574,8 @@ class Grid:
                     v = LockedDoor(color, isOpen)
                 elif objType == 'goal':
                     v = Goal()
+                elif objType == 'lava':
+                    v = Lava()
                 else:
                     assert False, "unknown obj type in decode '%s'" % objType
 
@@ -591,9 +612,9 @@ class MiniGridEnv(gym.Env):
         move_up = 2
         move_down = 3
 
-    def __init__(self, gridSize=16, maxSteps=100, orientation_mode = True):
+    def __init__(self, gridSize=16, maxSteps=100, orientation_mode = True, partially_observable=True):
         self.orientation_mode = orientation_mode
-
+        self.partially_observable = partially_observable
         # Action enumeration for this environment
         if not orientation_mode:
             self.actions = MiniGridEnv.ActionsNoOrient
@@ -884,11 +905,18 @@ class MiniGridEnv(gym.Env):
 
         targetCell = self.grid.get(newPos[0], newPos[1])
         if targetCell == None:
+            self.previous_cell = targetCell
+            self.previous_pos = self.agentPos
             self.agentPos = newPos
         elif targetCell.type == 'goal':
             done = True
             reward = 1000 - self.stepCount
+        elif targetCell.type == 'lava':
+            done = True
+            reward = -1000 - self.stepCount
         elif targetCell.canOverlap():
+            self.previous_cell = targetCell
+            self.previous_pos = self.agentPos
             self.agentPos = newPos
             if targetCell.canPickup() and self.carrying is None:
                     self.carrying = targetCell
@@ -896,24 +924,31 @@ class MiniGridEnv(gym.Env):
 
     def _genObs(self):
         """
-        Generate the agent's view (partially observable, low-resolution encoding)
+        Generate the agent's view (Full or partially observable, low-resolution encoding)
         """
+        if self.partially_observable:
+            topX, topY, botX, botY = self.getViewExts()
 
-        topX, topY, botX, botY = self.getViewExts()
+            grid = self.grid.slice(topX, topY, AGENT_VIEW_SIZE, AGENT_VIEW_SIZE)
 
-        grid = self.grid.slice(topX, topY, AGENT_VIEW_SIZE, AGENT_VIEW_SIZE)
+            for i in range(self.agentDir + 1):
+                grid = grid.rotateLeft()
 
-        for i in range(self.agentDir + 1):
-            grid = grid.rotateLeft()
+            agentPos = grid.width // 2, grid.height - 1
+        else:
+            grid = self.grid
+            agentPos = self.agentPos
+
+
 
         # Make it so the agent sees what it's carrying
         # We do this by placing the carried object at the agent's position
-        # in the agent's partially observable view
-        agentPos = grid.width // 2, grid.height - 1
         if self.carrying:
             grid.set(*agentPos, self.carrying)
-        else:
-            grid.set(*agentPos, None)
+            if self.previous_pos:
+                grid.set(*self.previous_pos, None)
+
+
 
         # Encode the partially observable view into a numpy array
         image = grid.encode()
@@ -926,6 +961,8 @@ class MiniGridEnv(gym.Env):
             'image': image,
             'mission': self.mission
         }
+        print('agent position',agentPos)
+        print('grid', image.shape)
 
         return obs
 
@@ -951,19 +988,7 @@ class MiniGridEnv(gym.Env):
 
         # Draw the agent
         r.push()
-        r.scale(0.5, 0.5)
-        r.translate(
-            CELL_PIXELS * (0.5 + AGENT_VIEW_SIZE // 2),
-            CELL_PIXELS * (AGENT_VIEW_SIZE - 0.5)
-        )
-        r.rotate(3 * 90)
-        r.setLineColor(255, 0, 0)
-        r.setColor(255, 0, 0)
-        r.drawPolygon([
-            (-12, 10),
-            ( 12,  0),
-            (-12, -10)
-        ])
+        self.renderAgent(r)
         r.pop()
 
         r.endFrame()
@@ -1014,20 +1039,18 @@ class MiniGridEnv(gym.Env):
 
         self.renderAgent(r)
 
-        if(self.carrying):
-            self.carrying.carryableObject(r)
-
         r.pop()
 
         # Highlight what the agent can see
-        topX, topY, botX, botY = self.getViewExts()
-        r.fillRect(
-            topX * CELL_PIXELS,
-            topY * CELL_PIXELS,
-            AGENT_VIEW_SIZE * CELL_PIXELS,
-            AGENT_VIEW_SIZE * CELL_PIXELS,
-            200, 200, 200, 75
-        )
+        if self.partially_observable:
+            topX, topY, botX, botY = self.getViewExts()
+            r.fillRect(
+                topX * CELL_PIXELS,
+                topY * CELL_PIXELS,
+                AGENT_VIEW_SIZE * CELL_PIXELS,
+                AGENT_VIEW_SIZE * CELL_PIXELS,
+                200, 200, 200, 75
+            )
 
         r.endFrame()
 
