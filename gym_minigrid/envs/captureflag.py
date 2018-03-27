@@ -73,7 +73,6 @@ class CaptureTheFlagEnv(MiniGridEnv):
                 lava_pos = self._randPos(0, width, 0, height,)
                 cell = self.grid.get(*lava_pos)
                 if not cell and lava_pos != self.startPos:
-                    print(cell)
                     self.grid.set(*lava_pos, Lava())
                     break
 

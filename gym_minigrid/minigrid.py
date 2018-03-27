@@ -301,7 +301,6 @@ class Flag(WorldObj):
             (12, 5),
             (25, 10),
             (12, 15),
-
         ])
 
         r.setLineColor(0, 0, 0)
@@ -887,45 +886,6 @@ class MiniGridEnv(gym.Env):
             newPos = (self.agentPos[0] + delta[0], self.agentPos[1] + delta[1])
             done, reward = self.tryMove(newPos)
 
-        # Rotate left
-        if action == self.actions.left:
-            self.agentDir -= 1
-            if self.agentDir < 0:
-                self.agentDir += 4
-
-        # Rotate right
-        elif action == self.actions.right:
-            self.agentDir = (self.agentDir + 1) % 4
-
-        # Move forward
-        elif action == self.actions.forward:
-            u, v = self.getDirVec()
-            newPos = (self.agentPos[0] + u, self.agentPos[1] + v)
-            targetCell = self.grid.get(newPos[0], newPos[1])
-            if targetCell == None or targetCell.canOverlap():
-                self.agentPos = newPos
-            if targetCell != None and targetCell.type == 'goal':
-                done = True
-                reward = 1000 - self.stepCount
-
-        # Pick up or trigger/activate an item
-        elif action == self.actions.toggle:
-            u, v = self.getDirVec()
-            objPos = (self.agentPos[0] + u, self.agentPos[1] + v)
-            cell = self.grid.get(*objPos)
-            if cell and cell.canPickup():
-                if self.carrying is None:
-                    self.carrying = cell
-                    self.grid.set(*objPos, None)
-            elif cell:
-                cell.toggle(self, objPos)
-            elif self.carrying:
-                self.grid.set(*objPos, self.carrying)
-                self.carrying = None
-
-        # Wait/do nothing
-        elif action == self.actions.wait:
-            pass
 
         if self.stepCount >= self.maxSteps:
             done = True
