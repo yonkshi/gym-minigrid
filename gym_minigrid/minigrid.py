@@ -626,12 +626,16 @@ class MiniGridEnv(gym.Env):
         # Actions are discrete integer values
         self.action_space = spaces.Discrete(len(self.actions))
 
+        if partially_observable:
+            obs_space_size = OBS_ARRAY_SIZE
+        else:
+            obs_space_size = (gridSize, gridSize, 3)
         # Observations are dictionaries containing an
         # encoding of the grid and a textual 'mission' string
         self.observation_space = spaces.Box(
             low=0,
             high=255,
-            shape=OBS_ARRAY_SIZE,
+            shape=obs_space_size,
             dtype='uint8'
         )
         self.observation_space = spaces.Dict({
@@ -962,8 +966,8 @@ class MiniGridEnv(gym.Env):
             'image': image,
             'mission': self.mission
         }
-        print('agent position',agentPos)
-        print('grid', image.shape)
+        #print('agent position',agentPos)
+        #print('grid', image)
 
         return obs
 
