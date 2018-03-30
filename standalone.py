@@ -20,7 +20,8 @@ def main():
         "--env-name",
         dest="env_name",
         help="gym environment to load",
-        default='MiniGrid-CaptureTheFlag-Basic-v0',
+        default='MiniGrid-CaptureTheFlag-Static-v0',
+        #default='MiniGrid-LockedRoom-v0',
     )
     (options, args) = parser.parse_args()
 
@@ -77,6 +78,7 @@ def main():
         obs, reward, done, info = env.step(action)
 
         print('step=%s, reward=%s' % (env.stepCount, reward))
+        print(env.observation_space.spaces['image'].shape)
 
         if done:
             print('done!')

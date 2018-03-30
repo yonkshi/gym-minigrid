@@ -10,6 +10,7 @@ class CaptureTheFlagEnv(MiniGridEnv):
         gridSize,
         lavaCount = 10,
         wallCount = 10,
+        maxSteps = 10000,
     ):
 
         self.gridSize = gridSize
@@ -18,7 +19,7 @@ class CaptureTheFlagEnv(MiniGridEnv):
 
         super(CaptureTheFlagEnv, self).__init__(
             gridSize=gridSize,
-            maxSteps=100,
+            maxSteps=maxSteps,
             orientation_mode=False,
             partially_observable=False,
         )
@@ -39,8 +40,22 @@ class CaptureTheFlagEnv(MiniGridEnv):
 
         prevDoorColor = None
 
-        key_pos = self._randPos( 0, width, 0, height,)
-        self.grid.set(*key_pos, Flag('red'))
+        # Place the final goal
+        while True:
+            flag_pos = (
+                self._randInt(0, width),
+                self._randInt(0, height)
+            )
+
+            # Make sure the goal doesn't overlap with the agent
+            cell = self.grid.get(*flag_pos)
+            if not cell and flag_pos != self.startPos:
+
+                self.grid.set(*flag_pos, Flag('red'))
+                break
+
+        #key_pos = self._randPos( 0, width, 0, height,)
+        #self.grid.set(*key_pos, Flag('red'))
 
         # Place the final goal
         while True:
@@ -62,7 +77,6 @@ class CaptureTheFlagEnv(MiniGridEnv):
                 wall_pos = self._randPos(0, width, 0, height,)
                 cell = self.grid.get(*wall_pos)
                 if not cell and wall_pos != self.startPos:
-                    print(cell)
                     self.grid.set(*wall_pos, Wall())
                     break
 
@@ -132,10 +146,52 @@ class CaptureTheFlagBasic(CaptureTheFlagEnv):
             gridSize=24,
         )
 
+class CaptureTheFlagStatic(CaptureTheFlagEnv):
+    def __init__(self):
+        super().__init__(
+            gridSize=10,
+        )
+
+    def _genGrid(self, width, height):
+        self.startPos = (0,0)
+
+        # Create the grid
+        self.grid = Grid(width, height)
+        width -= 1
+        height -= 1
+
+        # Place the flag
+        self.grid.set(*(0, height), Flag('red'))
+
+        # Place the final goal
+        self.grid.set(*(width, height), Goal())
+
+
+        # Placing walls
+        self.grid.set(*(1, 4), Wall())
+        self.grid.set(*(2, 5), Wall())
+        self.grid.set(*(4, 7), Wall())
+        self.grid.set(*(7, 4), Wall())
+        self.grid.set(*(8, 4), Wall())
+
+        # Placing lava
+        self.grid.set(*(5, 5), Lava())
+        self.grid.set(*(5, 6), Lava())
+        self.grid.set(*(0, 5), Lava())
+        self.grid.set(*(3, 8), Lava())
+        self.grid.set(*(8, 3), Lava())
+
+        self.mission = 'traverse the rooms to get to the goal'
 
 register(
     id='MiniGrid-CaptureTheFlag-Basic-v0',
     entry_point='gym_minigrid.envs:CaptureTheFlagBasic',
+    reward_threshold=1000.0
+)
+
+register(
+    id='MiniGrid-CaptureTheFlag-Static-v0',
+    entry_point='gym_minigrid.envs:CaptureTheFlagStatic',
     reward_threshold=1000.0
 )
 
