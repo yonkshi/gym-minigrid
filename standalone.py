@@ -9,9 +9,11 @@ import time
 from optparse import OptionParser
 
 import gym_minigrid
+import expert
 
 def main():
     basic_mode = True
+    expert_mode = True
     parser = OptionParser()
     parser.add_option(
         "-e",
@@ -19,12 +21,15 @@ def main():
         dest="env_name",
         help="gym environment to load",
         default='MiniGrid-CaptureTheFlag-Basic-v0',
-        #default='MiniGrid-LockedRoom-v0',
     )
     (options, args) = parser.parse_args()
 
     # Load the gym environment
     env = gym.make(options.env_name)
+
+    # Load out expert
+    if(expert_mode):
+        q_expert = expert.ExpertClass(env)      
 
     def resetEnv():
         env.reset()
@@ -43,7 +48,6 @@ def main():
 
         if keyName == 'ESCAPE':
             sys.exit(0)
-
 
         action = 0
         if basic_mode:
@@ -78,9 +82,13 @@ def main():
             print('done!')
             resetEnv()
 
-    renderer.window.setKeyDownCb(keyDownCb)
+    if(not expert_mode):
+        renderer.window.setKeyDownCb(keyDownCb)
 
     while True:
+        if(expert_mode):
+            action=q_expert.update(env)
+            
         env.render('human')
         time.sleep(0.01)
 
