@@ -17,8 +17,8 @@ class ExpertClass():
         self.gridSize = env.gridSize
         self.num_states = self.gridSize*self.gridSize
 
-        self.q = np.random.rand(self.num_states,env.action_space.n)/10
-        #self.init_value_plot()
+        self.q = np.zeros((self.num_states, env.action_space.n)); #np.random.rand(self.num_states,env.action_space.n)/10
+        self.init_value_plot()
         
     def reset(self,env):
         env.reset()
@@ -28,46 +28,59 @@ class ExpertClass():
     def get_action(self, env):
         s = env.agentPos[0] + self.gridSize*env.agentPos[1];
 
-        if random.uniform(0, 1) <= 0.8:
+        if random.uniform(0, 1) <= 0.7:
             return np.argmax(self.q[s,:])
         else:
             return env.action_space.sample()
 
-    def update_q(self,a,agentPos,reward):
-        q_old = self.q
-        
-        ## obs['image'].flatten() # THIS IS ALL OBSERVATIONS OF WORLD!
-        s = agentPos[0] + self.gridSize*agentPos[1];
+    def update_q(self,s,a,r,s_prime):
 
-        self.q[s,a] = self.q[s,a] + 0.01*(reward + 0.9*q_old[s,a] - self.q[s,a])
+        ## obs['image'].flatten() # THIS IS ALL OBSERVATIONS OF WORLD!
+
+        self.q[s,a] = self.q[s,a] + 0.01*(r + 0.7*np.argmax(self.q[s_prime,:]) - self.q[s,a])
 
     def init_value_plot(self):
+
+        # get initial plot config
+        fig = plt.figure(figsize=(3,3))
+        self.axes = fig.add_subplot(111)
+        self.axes.set_autoscale_on(True)
+
+        # get value from q-function
         q_max = np.max(self.q,1)
         v = np.reshape(q_max,(self.gridSize,self.gridSize))
-        self.v_plotter = plt.imshow(v,interpolation='none', cmap='viridis')        
-        plt.vmin=0; plt.vmax=1;
+
+        # plot value function
+        self.v_plotter = plt.imshow(v,interpolation='none', cmap='viridis', vmin=v.min(), vmax=v.max());
+        plt.xticks([]); plt.yticks([]); self.axes.grid(False);
         plt.ion();
         plt.show();
         
     def see_value_plot(self):
-        q_max = np.max(self.q,1)
-        v = np.reshape(q_max,(self.gridSize,self.gridSize))
-        self.v_plotter.set_data(v)        
+        q_max = np.max(self.q,1)        
+        v = np.reshape(q_max,(self.gridSize,self.gridSize))        
+        self.v_plotter.set_data(v)
+        plt.clim(v.min(),v.max()) 
         plt.draw(); plt.show()
         plt.pause(0.0001)
         
     def update(self,env):
         
-        action = self.get_action(env)
-        obs, reward, done, info = env.step(action)
+        s = env.agentPos[0] + self.gridSize*env.agentPos[1];
+        a = self.get_action(env)
         
-        self.update_q(action,env.agentPos,reward)           
-        if(reward):
-            print('step=%s, reward=%s' % (env.stepCount, reward))
+        obs, r, done, info = env.step(a)
+
+        s_prime = env.agentPos[0] + self.gridSize*env.agentPos[1];
+
+        self.update_q(s,a,r,s_prime)
+        
+        if(r):
+            print('step=%s, reward=%s' % (env.stepCount, r))
 
         if done:
             print("done!")
             self.reset(env)
-            #self.see_value_plot()
+            self.see_value_plot()
             
 
