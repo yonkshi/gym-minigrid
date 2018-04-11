@@ -17,7 +17,9 @@ class ExpertClass():
         self.gridSize = env.gridSize
         self.num_states = self.gridSize*self.gridSize
 
-        self.q = np.zeros((self.num_states, env.action_space.n)); #np.random.rand(self.num_states,env.action_space.n)/10
+        self.epsilon = 0.5;
+        
+        self.q = np.zeros((self.num_states, env.action_space.n)); 
         self.init_value_plot()
         
     def reset(self,env):
@@ -28,10 +30,10 @@ class ExpertClass():
     def get_action(self, env):
         s = env.agentPos[0] + self.gridSize*env.agentPos[1];
 
-        if random.uniform(0, 1) <= 0.7:
-            return np.argmax(self.q[s,:])
-        else:
+        if random.uniform(0, 1) <= self.epsilon:
             return env.action_space.sample()
+        else:
+            return np.argmax(self.q[s,:])
 
     def update_q(self,s,a,r,s_prime):
 
@@ -64,8 +66,11 @@ class ExpertClass():
         plt.draw(); plt.show()
         plt.pause(0.0001)
         
-    def update(self,env):
+    def update(self,env,DEBUG):
         
+        if(DEBUG):
+            self.epsilon = 0.9
+
         s = env.agentPos[0] + self.gridSize*env.agentPos[1];
         a = self.get_action(env)
         
@@ -82,5 +87,9 @@ class ExpertClass():
             print("done!")
             self.reset(env)
             self.see_value_plot()
+
+        if(DEBUG):
+            print(s,a,"->",end='')
+        
             
 
