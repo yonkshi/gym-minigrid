@@ -33,38 +33,40 @@ def main():
     env = gym.make(options.env_name)
 
     # Load expert agent / inverse learner
-    if(expert_mode):
-        q_expert = expert.ExpertClass(env)
-    else:
-        maxent_learner = inverse_agent.InverseAgentClass(env)        
+    q_expert = expert.ExpertClass(env)
+    maxent_learner = inverse_agent.InverseAgentClass(env)        
 
+    ## expert_mode: get expert trajectories
 
-    if(expert_mode):
-
-        renderer = env.render('human')
+    renderer = env.render('human')
         
-        for train in range(1000):
-            action=q_expert.update(env,False)
-            
-            env.render('human')
-            time.sleep(0.01)
+    for train in range(100):
+        action=q_expert.update(env,False)
         
-            # If the window was closed
-            if renderer.window == None:
-                break
-            
-        for test in range(10):
-            action=q_expert.update(env,True)
-            
-            env.render('human')
-            time.sleep(0.01)
+        env.render('human')
+        time.sleep(0.01)
         
-            # If the window was closed
-            if renderer.window == None:
-                break        
-    else:
+        # If the window was closed
+        if renderer.window == None:
+            break
+        
+    for test in range(100):
+        action=q_expert.update(env,True)
+        
+        env.render('human')
+        time.sleep(0.01)
+        
+        # If the window was closed
+        if renderer.window == None:
+            break
 
-       maxent_learner.get_state_visitation_frequency(env) 
+    ## get traj
+    TAU = q_expert.get_tau();
+    print(TAU)
+        
+    ## inverse RL mode: learn MaxEnt IRL from trajectories
+
+    maxent_learner.get_state_visitation_frequency(env) 
 
 if __name__ == "__main__":
     main()

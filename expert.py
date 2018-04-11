@@ -21,11 +21,23 @@ class ExpertClass():
         
         self.q = np.zeros((self.num_states, env.action_space.n)); 
         self.init_value_plot()
+
+        ## initialize trajectory details ##
+        # tau_i := {TAU_S[i,0],TAU_A[i,0], TAU_S[i,1],TAU_A[i,1], ..., TAU_S[i,T],TAU_A[i,T]}
+
+        self.tau_num = 100; # number of trajectories
+        self.tau_len = 15; # length of each trajectory
+
+        self.TAU_S = np.zeros((self.tau_num, self.tau_len)) # matrix of states with all trajectories
+        self.TAU_A = np.zeros((self.tau_num, self.tau_len)) # matrix of actions with all trajectories
+
+        self.tau_idx = 0;
         
     def reset(self,env):
         env.reset()
-        if hasattr(env, 'mission'):
-            print('Mission: %s' % env.mission)
+        self.tau_idx+=1;
+        #if hasattr(env, 'mission'):
+        #    print('Mission: %s' % env.mission)
         
     def get_action(self, env):
         s = env.agentPos[0] + self.gridSize*env.agentPos[1];
@@ -35,6 +47,14 @@ class ExpertClass():
         else:
             return np.argmax(self.q[s,:])
 
+    def store_tau(self,state,action,time):
+        self.TAU_S[time][self.tau_idx] = int(state);
+        self.TAU_A[time][self.tau_idx] = int(action);
+
+    def get_tau(self):
+        #print(TAU_S,TAU_A)
+        return (self.TAU_S,self.TAU_A)
+        
     def update_q(self,s,a,r,s_prime):
 
         ## obs['image'].flatten() # THIS IS ALL OBSERVATIONS OF WORLD!
@@ -66,9 +86,9 @@ class ExpertClass():
         plt.draw(); plt.show()
         plt.pause(0.0001)
         
-    def update(self,env,DEBUG):
+    def update(self,env,STORE):
         
-        if(DEBUG):
+        if(STORE):
             self.epsilon = 0.9
 
         s = env.agentPos[0] + self.gridSize*env.agentPos[1];
@@ -88,8 +108,9 @@ class ExpertClass():
             self.reset(env)
             self.see_value_plot()
 
-        if(DEBUG):
-            print(s,a,"->",end='')
+        if(STORE):
+            #print(s,a,"->",end='')
+            self.store_tau(s,a,env.stepCount);
         
             
 
