@@ -8,10 +8,10 @@ from optparse import OptionParser
 import ipdb
 import random
 
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 class ExpertClass():
-    def __init__(self,env):
+    def __init__(self,env,tau_num,tau_len):
 
         # obviously a bad way to find #states. TODO: find alternative
         self.gridSize = env.gridSize
@@ -20,13 +20,13 @@ class ExpertClass():
         self.epsilon = 0.5;
         
         self.q = np.zeros((self.num_states, env.action_space.n)); 
-        self.init_value_plot()
+
+        #self.init_value_plot()
 
         ## initialize trajectory details ##
         # tau_i := {TAU_S[i,0],TAU_A[i,0], TAU_S[i,1],TAU_A[i,1], ..., TAU_S[i,T],TAU_A[i,T]}
-
-        self.tau_num = 10; # number of trajectories
-        self.tau_len = 15; env.maxSteps = self.tau_len; # length of each trajectory
+        self.tau_num = tau_num;
+        self.tau_len = tau_len;
 
         self.TAU_S = np.zeros((self.tau_len, self.tau_num)) # matrix of states with all trajectories
         self.TAU_A = np.zeros((self.tau_len, self.tau_num)) # matrix of actions with all trajectories
@@ -99,8 +99,8 @@ class ExpertClass():
 
         self.update_q(s,a,r,s_prime)
 
-        if done:
-            self.see_value_plot()
+        #if done:
+        #    self.see_value_plot()
 
         if(STORE):
             self.store_tau(episode,env.stepCount-1,s,a);
