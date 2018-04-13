@@ -25,17 +25,15 @@ class ExpertClass():
         ## initialize trajectory details ##
         # tau_i := {TAU_S[i,0],TAU_A[i,0], TAU_S[i,1],TAU_A[i,1], ..., TAU_S[i,T],TAU_A[i,T]}
 
-        self.tau_num = 100; # number of trajectories
-        self.tau_len = 15; # length of each trajectory
+        self.tau_num = 10; # number of trajectories
+        self.tau_len = 15; env.maxSteps = self.tau_len; # length of each trajectory
 
-        self.TAU_S = np.zeros((self.tau_num, self.tau_len)) # matrix of states with all trajectories
-        self.TAU_A = np.zeros((self.tau_num, self.tau_len)) # matrix of actions with all trajectories
-
-        self.tau_idx = 0;
+        self.TAU_S = np.zeros((self.tau_len, self.tau_num)) # matrix of states with all trajectories
+        self.TAU_A = np.zeros((self.tau_len, self.tau_num)) # matrix of actions with all trajectories
         
     def reset(self,env):
         env.reset()
-        self.tau_idx+=1;
+
         #if hasattr(env, 'mission'):
         #    print('Mission: %s' % env.mission)
         
@@ -47,9 +45,10 @@ class ExpertClass():
         else:
             return np.argmax(self.q[s,:])
 
-    def store_tau(self,state,action,time):
-        self.TAU_S[time][self.tau_idx] = int(state);
-        self.TAU_A[time][self.tau_idx] = int(action);
+    def store_tau(self,episode,time,state,action):
+        #print(self.TAU_S.shape,time,episode)
+        self.TAU_S[time][episode] = int(state);
+        self.TAU_A[time][episode] = int(action);
 
     def get_tau(self):
         #print(TAU_S,TAU_A)
@@ -86,7 +85,7 @@ class ExpertClass():
         plt.draw(); plt.show()
         plt.pause(0.0001)
         
-    def update(self,env,STORE):
+    def update(self,env,episode,STORE):
         
         if(STORE):
             self.epsilon = 0.9
@@ -99,18 +98,14 @@ class ExpertClass():
         s_prime = env.agentPos[0] + self.gridSize*env.agentPos[1];
 
         self.update_q(s,a,r,s_prime)
-        
-        if(r):
-            print('step=%s, reward=%s' % (env.stepCount, r))
 
         if done:
-            print("done!")
-            self.reset(env)
             self.see_value_plot()
 
         if(STORE):
-            #print(s,a,"->",end='')
-            self.store_tau(s,a,env.stepCount);
+            self.store_tau(episode,env.stepCount-1,s,a);
+
+        return done
         
             
 
