@@ -933,8 +933,8 @@ class MiniGridEnv(gym.Env):
     ## thanks to: naresh, anna, yonk
     def T_sas(self, s, a, s_prime):
 
-        state = (s%self.gridSize, s/self.gridSize);
-        state_prime = (s_prime%self.gridSize, s_prime/self.gridSize);
+        state = (int(s%self.gridSize), int(s/self.gridSize));
+        state_prime = (int(s_prime%self.gridSize), int(s_prime/self.gridSize));
         
         if a == self.actions.move_up:
             delta = [0, -1]
