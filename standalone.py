@@ -30,7 +30,7 @@ def main():
     (options, args) = parser.parse_args()
 
     # trajectory data parameters
-    tau_num = 2; # number of trajectories
+    tau_num = 20; # number of trajectories
     tau_len = 15; # length of each trajectories
     
     # Load the gym environment

@@ -35,12 +35,12 @@ class InverseAgentClass():
         ## REWARD
         self.psi = np.random.rand(self.num_states); # reward function parameter
 
-    # store all trajectories data (states and actions seperately)
+    # STEP:0 store all trajectories data (states and actions seperately)
     def store_trajectories(self, TAU):
         self.TAU_S = TAU[0];
         self.TAU_A = TAU[1];
 
-    ## value-iteration
+    ## STEP:1 value-iteration
     ## perform value iteration with the current R(s;psi) and update pi(a|s;theta)
     def value_iteration(self,env):
 
@@ -55,9 +55,13 @@ class InverseAgentClass():
             if(update_difference<0.01):
                 break;
 
-        print("Value iteration converged!: update_difference=",update_difference)
-            
-        #TODO: UPDATE POLICY FROM HERE!!
+        #print("Value iteration converged!: update_difference=",update_difference)
+
+        # get pi(a|s) = argmax_a sum_s' (r(s')+gamma*v(s'))
+        for s in range(self.num_states):
+            greedy_action = np.argmax([np.sum([ env.T_sas(s,a,s_prime)*(self.reward(s_prime)+self.gamma*self.value[s_prime]) for s_prime in range(self.num_states)]) for a in range(self.num_actions)])
+            for a in range(self.num_actions):
+                self.pi[s,a] = 1.0 if a==greedy_action else 0.0;
 
     ## get reward: r(s;psi)
     ## reward function is linear r(s;pi)= psi(i) phi(i)
@@ -69,7 +73,7 @@ class InverseAgentClass():
         #return np.exp(self.theta[s,a])/ np.sum([np.exp(self.theta[s,b]) for b in range(self.num_actions)])
         return self.pi[s,a]
 
-    ## compute P(s | TAU, T)
+    ## STEP:2.1 compute P(s | TAU, T)
     ## find the state-visition frequency for the provided trajectories
     def get_state_visitation_frequency_under_TAU(self,env):
 
@@ -82,7 +86,7 @@ class InverseAgentClass():
 
         return self.mu_tau/self.tau_num
     
-    ## compute P(s | pi_theta, T)
+    ## STEP:2.2 compute P(s | pi_theta, T)
     ## find the state-visitation frequency for all states
     def get_state_visitation_frequency(self,env):
 
@@ -105,23 +109,23 @@ class InverseAgentClass():
     
     def update(self,env):
 
-        # STEP:1
-        # TODO: solve for optimal policy: do policy iteration on r(s;psi)
-        self.value_iteration(env);
-        ## pi = get_policy();
+        while True:
+            # STEP:1
+            # solve for optimal policy: do policy iteration on r(s;psi)
+            self.value_iteration(env);
+            
+            # STEP:2
+            mu_tau = self.get_state_visitation_frequency(env)        
+            mu = self.get_state_visitation_frequency_under_TAU(env)
+            
+            # STEP:3
+            grad = -(mu_tau -mu);
+            print(grad.shape)        
+            
+            # STEP:4
+            # update psi of r(s;psi)
+            self.psi = self.psi + self.alpha*grad;
 
-        # STEP:2
-        mu_tau = self.get_state_visitation_frequency(env)        
-        mu = self.get_state_visitation_frequency_under_TAU(env)
-
-        # STEP:3
-        grad = -(mu_tau -mu);
-        print(grad.shape)        
-        
-        # STEP:4
-        # update psi of r(s;psi)
-        self.psi = self.psi + self.alpha*grad;
-
-        # REPEAT
-        
+            print("gradient=",np.sum(grad))
+            
         print("updating..")    
