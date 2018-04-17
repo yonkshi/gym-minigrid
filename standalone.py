@@ -9,9 +9,15 @@ import time
 from optparse import OptionParser
 
 import gym_minigrid
+import expert
+import inverse_agent
 
 def main():
+    
     basic_mode = True
+    expert_mode = True
+    inverse_mode = False
+    
     parser = OptionParser()
     parser.add_option(
         "-e",
@@ -23,71 +29,51 @@ def main():
     )
     (options, args) = parser.parse_args()
 
+    # trajectory data parameters
+    tau_num = 1; # number of trajectories
+    tau_len = 15; # length of each trajectories
+    
     # Load the gym environment
     env = gym.make(options.env_name)
+    env.maxSteps = tau_len; # maximum time for an episode = length of our trajectory
+        
+    # Load expert agent / inverse learner
+    q_expert = expert.ExpertClass(env,tau_num,tau_len)
+    maxent_learner = inverse_agent.InverseAgentClass(env,tau_num,tau_len)        
 
-    def resetEnv():
-        env.reset()
-        if hasattr(env, 'mission'):
-            print('Mission: %s' % env.mission)
+    ## expert_mode: get expert trajectories
 
-    resetEnv()
+    #renderer = env.render('human')
+        
+    for episode in range(10):
+        for t in range(tau_len):
+            
+            if(q_expert.update(env,episode,False)):
+                q_expert.reset(env)
+                break
+            
+            #env.render('human')
+            #time.sleep(0.01)
+            
+    q_expert.reset(env)
+        
+    for episode in range(1):
+        for t in range(tau_len):
+            if(q_expert.update(env,episode,True)):
+                q_expert.reset(env)
+                break
+            
+            #env.render('human')
+            #time.sleep(0.01)
+            
+    ## get traj    
+    TAU = q_expert.get_tau();
+    print(TAU)
+    
+    ## inverse RL mode: learn MaxEnt IRL from trajectories
 
-    # Create a window to render into
-    renderer = env.render('human')
-
-    def keyDownCb(keyName):
-        if keyName == 'BACKSPACE':
-            resetEnv()
-            return
-
-        if keyName == 'ESCAPE':
-            sys.exit(0)
-
-
-        action = 0
-        if basic_mode:
-            if keyName == 'LEFT':
-                action = env.actions.move_left
-            elif keyName == 'RIGHT':
-                action = env.actions.move_right
-            elif keyName == 'UP':
-                action = env.actions.move_up
-            elif keyName == 'DOWN':
-                action = env.actions.move_down
-        else:
-            if keyName == 'LEFT':
-                action = env.actions.left
-            elif keyName == 'RIGHT':
-                action = env.actions.right
-            elif keyName == 'UP':
-                action = env.actions.forward
-            elif keyName == 'SPACE':
-                action = env.actions.toggle
-            elif keyName == 'CTRL':
-                action = env.actions.wait
-            else:
-                print("unknown key %s" % keyName)
-                return
-
-        obs, reward, done, info = env.step(action)
-
-        print('step=%s, reward=%s' % (env.stepCount, reward))
-        print(env.observation_space.spaces['image'].shape)
-
-        if done:
-            print('done!')
-            resetEnv()
-
-    renderer.window.setKeyDownCb(keyDownCb)
-
-    while True:
-        env.render('human')
-        time.sleep(0.01)
-
-        # If the window was closed
-        if renderer.window == None:
-            break
+    maxent_learner.store_trajectories(TAU);
+    maxent_learner.update_psi(env) 
 
 if __name__ == "__main__":
     main()
