@@ -73,7 +73,8 @@ def main():
     ## inverse RL mode: learn MaxEnt IRL from trajectories
 
     maxent_learner.store_trajectories(TAU);
-    maxent_learner.update_psi(env) 
+    
+    maxent_learner.update(env) 
 
 if __name__ == "__main__":
     main()

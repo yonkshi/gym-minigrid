@@ -927,6 +927,35 @@ class MiniGridEnv(gym.Env):
                     self.carrying = targetCell
         return done, reward
 
+    ## user defined function
+    ## state, state_prime are integer indices
+    ## action is integer index too
+    ## thanks to: naresh, anna, yonk
+    def T_sas(self, s, a, s_prime):
+
+        state = (s%self.gridSize, s/self.gridSize);
+        state_prime = (s_prime%self.gridSize, s_prime/self.gridSize);
+        
+        if a == self.actions.move_up:
+            delta = [0, -1]
+        elif a == self.actions.move_down:
+            delta = [0, 1]
+        elif a == self.actions.move_left:
+            delta = [-1, 0]
+        elif a == self.actions.move_right:
+            delta = [1, 0]
+        else:
+            assert False, "unknown action"
+
+        state_next = (state[0]+delta[0], state[1]+delta[1])
+
+        # TODO: check it this state is possibile
+
+        if(state_prime==state_next):
+            return 1.0;
+        else:
+            return 0.0;
+    
     def _genObs(self):
         """
         Generate the agent's view (Full or partially observable, low-resolution encoding)
