@@ -30,7 +30,7 @@ def main():
     (options, args) = parser.parse_args()
 
     # trajectory data parameters
-    tau_num = 1; # number of trajectories
+    tau_num = 2; # number of trajectories
     tau_len = 15; # length of each trajectories
     
     # Load the gym environment
@@ -57,7 +57,7 @@ def main():
             
     q_expert.reset(env)
         
-    for episode in range(1):
+    for episode in range(tau_num):
         for t in range(tau_len):
             if(q_expert.update(env,episode,True)):
                 q_expert.reset(env)

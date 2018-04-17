@@ -839,6 +839,7 @@ class MiniGridEnv(gym.Env):
             elif action == self.actions.forward:
                 u, v = self.getDirVec()
                 newPos = (self.agentPos[0] + u, self.agentPos[1] + v)
+                print("newPos[0]", newPos[0])
                 targetCell = self.grid.get(newPos[0], newPos[1])
                 if targetCell == None or targetCell.canOverlap():
                     self.agentPos = newPos
@@ -949,9 +950,17 @@ class MiniGridEnv(gym.Env):
 
         state_next = (state[0]+delta[0], state[1]+delta[1])
 
+        next_state = self.grid.get(state_prime[0], state_prime[1])
+
         # TODO: check it this state is possibile
 
-        if(state_prime==state_next):
+        if (state_prime==state_next and next_state == None):
+            return 1.0;
+        elif (state_prime == state_next and next_state.type == 'goal'):
+            return 1.0;
+        elif (state_prime == state_next and next_state.type == 'lava'):
+            return 1.0;
+        elif (state_prime == state_next and next_state.canOverlap() == True):
             return 1.0;
         else:
             return 0.0;
@@ -981,8 +990,6 @@ class MiniGridEnv(gym.Env):
             grid.set(*agentPos, self.carrying)
             if self.previous_pos:
                 grid.set(*self.previous_pos, None)
-
-
 
         # Encode the partially observable view into a numpy array
         image = grid.encode()

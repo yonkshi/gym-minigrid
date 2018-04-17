@@ -19,7 +19,8 @@ class InverseAgentClass():
 
         self.tau_num = tau_num; # number of trajectories
         self.tau_len = tau_len; # length of each trajectory
-        self.gamma = 0.9;
+        self.gamma = 0.9; # discount factor
+        self.alpha = 0.01; # learning rate
         
         self.gridSize = env.gridSize
         self.num_states = self.gridSize*self.gridSize # number of states
@@ -39,12 +40,8 @@ class InverseAgentClass():
         self.TAU_S = TAU[0];
         self.TAU_A = TAU[1];
 
-    # get an action given state:  a ~ pi(.|s;theta)
-    #def policy(self,env,s):
-    #    return env.action_space.sample() # now returning random action
-
-    # value-iteration
-    # perform value iteration with the current R(s;psi) and update pi(a|s;theta)
+    ## value-iteration
+    ## perform value iteration with the current R(s;psi) and update pi(a|s;theta)
     def value_iteration(self,env):
 
         T_sas=0.01;
@@ -55,11 +52,15 @@ class InverseAgentClass():
                 old_value = self.value[s]
                 self.value[s] = np.max( [np.sum([ env.T_sas(s,a,s_prime)*(self.reward(s_prime)+self.gamma*self.value[s_prime]) for s_prime in range(self.num_states)]) for a in range(self.num_actions)])
                 update_difference = max(update_difference, abs(old_value-self.value[s]))
-            print("Running value iteration: update_difference=",update_difference)
             if(update_difference<0.01):
                 break;
 
-    # get reward: r(s;psi)
+        print("Value iteration converged!: update_difference=",update_difference)
+            
+        #TODO: UPDATE POLICY FROM HERE!!
+
+    ## get reward: r(s;psi)
+    ## reward function is linear r(s;pi)= psi(i) phi(i)
     def reward(self,s):
         return self.psi[s];
                     
@@ -67,8 +68,22 @@ class InverseAgentClass():
     def policy(self,env,s,a):
         #return np.exp(self.theta[s,a])/ np.sum([np.exp(self.theta[s,b]) for b in range(self.num_actions)])
         return self.pi[s,a]
-          
-    # compute P(s | pi_theta, T) 
+
+    ## compute P(s | TAU, T)
+    ## find the state-visition frequency for the provided trajectories
+    def get_state_visitation_frequency_under_TAU(self,env):
+
+        # mu_tau[state, time] is the prob of visiting state s at time t FROM our trajectories         
+        self.mu_tau = np.zeros([self.num_states])        
+        
+        for i in self.TAU_S:
+            for j in i:
+                self.mu_tau[int(j)] += 1
+
+        return self.mu_tau/self.tau_num
+    
+    ## compute P(s | pi_theta, T)
+    ## find the state-visitation frequency for all states
     def get_state_visitation_frequency(self,env):
 
         # mu[state, time] is the prob of visiting state s at time t
@@ -87,14 +102,6 @@ class InverseAgentClass():
                         mu[state_next, time+1] += mu[state, time] * self.policy(env,state,action) * env.T_sas(state,action,state_next)
                         
         return np.mean(mu, 1) # squeeze throughout time and return
-
-    def get_grad(self):
-        '''
-        computer grad_psi L(psi) = - 1/D * sum_{tau \in TAU}
-        '''
-        
-        grad = 1; ## TODO: write gradient
-    
     
     def update(self,env):
 
@@ -104,14 +111,16 @@ class InverseAgentClass():
         ## pi = get_policy();
 
         # STEP:2
-        # working: but must add transition function from grid world
-        #self.get_state_visitation_frequency(env)
+        mu_tau = self.get_state_visitation_frequency(env)        
+        mu = self.get_state_visitation_frequency_under_TAU(env)
 
         # STEP:3
-        self.get_grad();
-
+        grad = -(mu_tau -mu);
+        print(grad.shape)        
+        
         # STEP:4
-        # TODO: update psi of r(s;psi)
+        # update psi of r(s;psi)
+        self.psi = self.psi + self.alpha*grad;
 
         # REPEAT
         
