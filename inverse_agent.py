@@ -115,17 +115,19 @@ class InverseAgentClass():
             self.value_iteration(env);
             
             # STEP:2
+            # compute state-visitation frequencies under tau / otherwise
             mu_tau = self.get_state_visitation_frequency(env)        
             mu = self.get_state_visitation_frequency_under_TAU(env)
             
             # STEP:3
+            # find gradient
             grad = -(mu_tau -mu);
             print(grad.shape)        
             
             # STEP:4
             # update psi of r(s;psi)
-            self.psi = self.psi + self.alpha*grad;
+            self.psi = self.psi - self.alpha*grad;
 
-            print("gradient=",np.sum(grad))
+            print("gradient=",np.sum(grad),grad)
             
         print("updating..")    

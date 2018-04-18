@@ -45,12 +45,15 @@ def main():
 
     #renderer = env.render('human')
         
-    for episode in range(10):
+    for episode in range(100000):
         for t in range(tau_len):
             
             if(q_expert.update(env,episode,False)):
                 q_expert.reset(env)
                 break
+
+        if(episode%1000==0):
+            print('Training expert episode:',episode)
             
             #env.render('human')
             #time.sleep(0.01)
@@ -62,9 +65,10 @@ def main():
             if(q_expert.update(env,episode,True)):
                 q_expert.reset(env)
                 break
+            env.render('human')
+            time.sleep(0.1)
             
-            #env.render('human')
-            #time.sleep(0.01)
+        print('Storing expert trajectory:',episode)
             
     ## get traj    
     TAU = q_expert.get_tau();
@@ -72,9 +76,9 @@ def main():
     
     ## inverse RL mode: learn MaxEnt IRL from trajectories
 
-    maxent_learner.store_trajectories(TAU);
+    #maxent_learner.store_trajectories(TAU);
     
-    maxent_learner.update(env) 
+    #maxent_learner.update(env) 
 
 if __name__ == "__main__":
     main()

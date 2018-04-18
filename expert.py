@@ -7,21 +7,23 @@ import time
 from optparse import OptionParser
 import ipdb
 import random
-
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 class ExpertClass():
     def __init__(self,env,tau_num,tau_len):
 
-        # obviously a bad way to find #states. TODO: find alternative
+        # states
         self.gridSize = env.gridSize
         self.num_states = self.gridSize*self.gridSize
 
-        self.epsilon = 0.5;
+        # meta-parameters
+        self.epsilon = 1.0; # e-greedy
+        self.alpha = 0.01; # learning rate
+        self.gamma = 0.7; # discount factor
         
         self.q = np.zeros((self.num_states, env.action_space.n)); 
 
-        #self.init_value_plot()
+        self.init_value_plot()
 
         ## initialize trajectory details ##
         # tau_i := {TAU_S[i,0],TAU_A[i,0], TAU_S[i,1],TAU_A[i,1], ..., TAU_S[i,T],TAU_A[i,T]}
@@ -58,12 +60,12 @@ class ExpertClass():
 
         ## obs['image'].flatten() # THIS IS ALL OBSERVATIONS OF WORLD!
 
-        self.q[s,a] = self.q[s,a] + 0.01*(r + 0.7*np.argmax(self.q[s_prime,:]) - self.q[s,a])
+        self.q[s,a] = self.q[s,a] + self.alpha*(r + self.gamma*np.max(self.q[s_prime,:]) - self.q[s,a])
 
     def init_value_plot(self):
 
         # get initial plot config
-        fig = plt.figure(figsize=(3,3))
+        fig = plt.figure(figsize=(5,5))
         self.axes = fig.add_subplot(111)
         self.axes.set_autoscale_on(True)
 
@@ -73,9 +75,8 @@ class ExpertClass():
 
         # plot value function
         self.v_plotter = plt.imshow(v,interpolation='none', cmap='viridis', vmin=v.min(), vmax=v.max());
-        plt.xticks([]); plt.yticks([]); self.axes.grid(False);
-        plt.ion();
-        plt.show();
+        plt.colorbar(); plt.xticks([]); plt.yticks([]); self.axes.grid(False);
+        plt.ion(); plt.show();
         
     def see_value_plot(self):
         q_max = np.max(self.q,1)        
@@ -88,7 +89,9 @@ class ExpertClass():
     def update(self,env,episode,STORE):
         
         if(STORE):
-            self.epsilon = 0.9
+            self.epsilon = 1.0
+        else:
+            self.epsilon = 0.5        
 
         s = env.agentPos[0] + self.gridSize*env.agentPos[1];
         a = self.get_action(env)
@@ -99,8 +102,8 @@ class ExpertClass():
 
         self.update_q(s,a,r,s_prime)
 
-        #if done:
-        #    self.see_value_plot()
+        if done and episode%100==0:
+            self.see_value_plot()
 
         if(STORE):
             self.store_tau(episode,env.stepCount-1,s,a);
