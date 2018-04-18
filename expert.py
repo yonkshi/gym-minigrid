@@ -23,15 +23,15 @@ class ExpertClass():
         
         self.q = np.zeros((self.num_states, env.action_space.n)); 
 
-        self.init_value_plot()
+        #self.init_value_plot()
 
         ## initialize trajectory details ##
         # tau_i := {TAU_S[i,0],TAU_A[i,0], TAU_S[i,1],TAU_A[i,1], ..., TAU_S[i,T],TAU_A[i,T]}
         self.tau_num = tau_num;
         self.tau_len = tau_len;
 
-        self.TAU_S = np.zeros((self.tau_len, self.tau_num)) # matrix of states with all trajectories
-        self.TAU_A = np.zeros((self.tau_len, self.tau_num)) # matrix of actions with all trajectories
+        self.TAU_S = np.zeros((self.tau_len, self.tau_num))-1 # matrix of states with all trajectories
+        self.TAU_A = np.zeros((self.tau_len, self.tau_num))-1 # matrix of actions with all trajectories
         
     def reset(self,env):
         env.reset()
@@ -52,8 +52,10 @@ class ExpertClass():
         self.TAU_S[time][episode] = int(state);
         self.TAU_A[time][episode] = int(action);
 
-    def get_tau(self):
-        #print(TAU_S,TAU_A)
+    def get_tau(self,PRINT):
+
+        if(PRINT):
+            print(self.TAU_S.T,self.TAU_A.T)
         return (self.TAU_S,self.TAU_A)
         
     def update_q(self,s,a,r,s_prime):
@@ -76,7 +78,7 @@ class ExpertClass():
         # plot value function
         self.v_plotter = plt.imshow(v,interpolation='none', cmap='viridis', vmin=v.min(), vmax=v.max());
         plt.colorbar(); plt.xticks([]); plt.yticks([]); self.axes.grid(False);
-        plt.ion(); plt.show();
+        plt.title('true value function'); plt.ion(); plt.show();
         
     def see_value_plot(self):
         q_max = np.max(self.q,1)        
@@ -87,9 +89,9 @@ class ExpertClass():
         plt.pause(0.0001)
         
     def update(self,env,episode,STORE):
-        
+
         if(STORE):
-            self.epsilon = 1.0
+            self.epsilon = 0.0
         else:
             self.epsilon = 0.5        
 
@@ -102,8 +104,8 @@ class ExpertClass():
 
         self.update_q(s,a,r,s_prime)
 
-        if done and episode%100==0:
-            self.see_value_plot()
+        #if done and episode%100==0:
+        #    self.see_value_plot()
 
         if(STORE):
             self.store_tau(episode,env.stepCount-1,s,a);

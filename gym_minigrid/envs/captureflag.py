@@ -148,15 +148,13 @@ class CaptureTheFlagBasic(CaptureTheFlagEnv):
 class CaptureTheFlagStatic(CaptureTheFlagEnv):
     def __init__(self):
         super().__init__(
-            gridSize=5,
+            gridSize=20,
         )
 
     def _genGrid(self, width, height):
 
-        self.startPos = (
-            self._randInt(0, width),
-            self._randInt(0, height)
-        )
+        self.startPos = (self._randInt(0, width),self._randInt(0, height));
+        #self.startPos = (3,3);
 
         # Create the grid
         self.grid = Grid(width, height)
@@ -168,7 +166,6 @@ class CaptureTheFlagStatic(CaptureTheFlagEnv):
 
         # Place the final goal
         self.grid.set(*(width-3, height-3), Goal())
-
 
         # Placing walls
         #self.grid.set(*(1, 4), Wall())
