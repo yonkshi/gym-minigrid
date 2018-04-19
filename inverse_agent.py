@@ -53,7 +53,9 @@ class InverseAgentClass():
             update_difference = -999;
             for s in range(self.num_states):
                 old_value = self.value[s]
-                self.value[s] = np.max( [np.sum([ env.T_sas(s,a,s_prime)*(self.reward(s_prime)+self.gamma*self.value[s_prime]) for s_prime in range(self.num_states)]) for a in range(self.num_actions)])
+                self.value[s] = np.max( [np.sum([ env.T_sas(s,a,s_prime)*(self.reward(s_prime)+self.gamma*self.value[s_prime])
+                                                  for s_prime in range(self.num_states)])
+                                         for a in range(self.num_actions)])
                 update_difference = max(update_difference, abs(old_value-self.value[s]))
             if(update_difference<value_threshold):
                 break;
@@ -62,7 +64,9 @@ class InverseAgentClass():
 
         # get pi(a|s) = argmax_a sum_s' (r(s')+gamma*v(s'))
         for s in range(self.num_states):
-            #greedy_action = np.argmax([np.sum([ env.T_sas(s,a,s_prime)*(self.reward(s_prime)+self.gamma*self.value[s_prime]) for s_prime in range(self.num_states)]) for a in range(self.num_actions)])
+            #greedy_action = np.argmax([np.sum([ env.T_sas(s,a,s_prime)*(self.reward(s_prime)+self.gamma*self.value[s_prime])
+            #                                    for s_prime in range(self.num_states)])
+            #                           for a in range(self.num_actions)])
             for a in range(self.num_actions):
                 #self.pi[s,a] = 1.0 if a==greedy_action else 0.0;
                 self.pi[s,a] = np.exp(np.sum([ env.T_sas(s,a,s_prime)*(self.reward(s_prime)+self.gamma*self.value[s_prime]) for s_prime in range(self.num_states)]))
@@ -110,16 +114,10 @@ class InverseAgentClass():
         mu[:,0] = mu[:,0]/float(self.tau_num)
 
         for time in range(self.tau_len-1):
-            for state in range(self.num_states):
-                for action in range(self.num_actions):
-                    for state_next in range(self.num_states):
-                        mu[state_next, time+1] += mu[state, time] * self.policy(env,state,action) * env.T_sas(state,action,state_next)
-
-        #print("sum",np.sum(mu[:,-1]))
-        #for state in range(self.num_states):
-        #    print(np.round(mu[state,-1],2),",",end='')
-        #print("")
-                
+            for state_next in range(self.num_states):
+                mu[state_next, time+1] +=  np.sum([np.sum([mu[state, time] * self.policy(env,state,action) * env.T_sas(state,action,state_next)
+                                                           for action in range(self.num_actions)])
+                                                   for state in range(self.num_states)])
         return np.mean(mu, 1) # squeeze throughout time and return
 
     #### plotters
@@ -158,11 +156,11 @@ class InverseAgentClass():
 
             # STEP:3
             # find gradient
-            grad = mu_tau/self.tau_num + mu;
+            grad = mu_tau/self.tau_num - mu;
             
             # STEP:4
             # update psi of r(s;psi)
-            self.psi = self.psi - self.alpha*grad;
+            self.psi = self.psi + self.alpha*grad;
             counter+=1;
 
             print("gradient=",np.sum(grad))

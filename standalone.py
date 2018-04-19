@@ -30,7 +30,7 @@ def main():
     (options, args) = parser.parse_args()
 
     # trajectory data parameters
-    tau_num = 500; # number of trajectories
+    tau_num = 50; # number of trajectories
     tau_len = 15; # length of each trajectories
     
     # Load the gym environment
@@ -39,7 +39,7 @@ def main():
         
     # Load expert agent / inverse learner
     q_expert = expert.ExpertClass(env,tau_num,tau_len)
-    maxent_learner = inverse_agent.InverseAgentClass(env,tau_num,tau_len)        
+    #maxent_learner = inverse_agent.InverseAgentClass(env,tau_num,tau_len)        
 
     ## expert_mode: get expert trajectories
 
@@ -64,8 +64,8 @@ def main():
             if(q_expert.update(env,episode,True)):
                 q_expert.reset(env)
                 break
-            #env.render('human')
-            #time.sleep(0.1)
+            env.render('human')
+            time.sleep(0.1)
             
         print('Storing expert trajectory:',episode)
             
@@ -74,9 +74,9 @@ def main():
     
     ## inverse RL mode: learn MaxEnt IRL from trajectories
 
-    maxent_learner.store_trajectories(TAU);
+    #maxent_learner.store_trajectories(TAU);
     
-    maxent_learner.update(env,PRINT=True) 
+    #maxent_learner.update(env,PRINT=True) 
 
 if __name__ == "__main__":
     main()

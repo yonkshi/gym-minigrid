@@ -110,7 +110,7 @@ class CaptureTheFlagEnv(MiniGridEnv):
             self.previous_cell = targetCell
             self.previous_pos = self.agentPos
             self.agentPos = newPos
-        elif targetCell.type == 'goal': #DEBUG and isinstance(self.carrying, Flag):
+        elif targetCell.type == 'goal' and isinstance(self.carrying, Flag):
             done = True
             reward = 1 #DEBUG 1000 - self.stepCount
         elif targetCell.type == 'lava':
@@ -148,7 +148,7 @@ class CaptureTheFlagBasic(CaptureTheFlagEnv):
 class CaptureTheFlagStatic(CaptureTheFlagEnv):
     def __init__(self):
         super().__init__(
-            gridSize=20,
+            gridSize=10,
         )
 
     def _genGrid(self, width, height):
@@ -162,10 +162,11 @@ class CaptureTheFlagStatic(CaptureTheFlagEnv):
         height -= 1
 
         # Place the flag
-        self.grid.set(*(0, height), Flag('red'))
+        self.grid.set(*(5,5), Flag('red'))
 
         # Place the final goal
-        self.grid.set(*(width-3, height-3), Goal())
+        self.grid.set(*(2, 2), Goal())
+        self.grid.set(*(width-2, height-2), Goal())
 
         # Placing walls
         #self.grid.set(*(1, 4), Wall())

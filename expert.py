@@ -91,7 +91,7 @@ class ExpertClass():
     def update(self,env,episode,STORE):
 
         if(STORE):
-            self.epsilon = 0.0
+            self.epsilon = 0.2
         else:
             self.epsilon = 0.5        
 
