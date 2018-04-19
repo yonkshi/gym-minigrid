@@ -36,7 +36,7 @@ class InverseAgentClass():
         self.psi = np.random.rand(self.num_states); # reward function parameter
 
         ## plot reward function
-        self.init_reward_plot()
+        #self.init_reward_plot()
 
     # STEP:0 store all trajectories data (states and actions seperately)
     def store_trajectories(self, TAU):
@@ -118,7 +118,7 @@ class InverseAgentClass():
                 mu[state_next, time+1] +=  np.sum([np.sum([mu[state, time] * self.policy(env,state,action) * env.T_sas(state,action,state_next)
                                                            for action in range(self.num_actions)])
                                                    for state in range(self.num_states)])
-        return np.mean(mu, 1) # squeeze throughout time and return
+        return np.sum(mu, 1) # squeeze throughout time and return
 
     #### plotters
     def init_reward_plot(self):
@@ -139,13 +139,29 @@ class InverseAgentClass():
         plt.clim(r.min(),r.max()) 
         plt.draw(); plt.show()
         plt.pause(0.0001)
-    
+
+    def compute_entropy(self):
+        fig = plt.figure(figsize=(5,5))
+        state_entropy = np.zeros([self.num_states])
+        for tau_i in self.TAU_S.T:
+            for tau_it in tau_i:
+                if(tau_it>=0):
+                    state_entropy[int(tau_it)] += 1.0
+        state_entropy = state_entropy/np.sum(self.TAU_S>=0)
+        plt.imshow(np.reshape(state_entropy,(5,5)),interpolation='none', cmap='viridis')
+        print(state_entropy)
+        plt.colorbar(); plt.xticks([]); plt.yticks([]);        
+        plt.title('state prob'); plt.ioff(); plt.show();
+        ipdb.set_trace()
+        
     def update(self,env,PRINT):
 
         mu_tau = self.get_state_visitation_frequency_under_TAU(env)
         counter = 0;
+
+        self.compute_entropy()
         
-        while True:
+        while False:
             # STEP:1
             # solve for optimal policy: do policy iteration on r(s;psi)
             self.value_iteration(env);
@@ -156,15 +172,15 @@ class InverseAgentClass():
 
             # STEP:3
             # find gradient
-            grad = mu_tau/self.tau_num - mu;
+            grad = mu_tau/self.tau_num - mu;            
             
             # STEP:4
             # update psi of r(s;psi)
             self.psi = self.psi + self.alpha*grad;
             counter+=1;
 
-            print("gradient=",np.sum(grad))
+            print("f_tau=",np.sum(mu_tau/self.tau_num)," mu=",np.sum(mu)," gradient=",np.sum(grad))
 
-            self.see_reward_plot()
+            #self.see_reward_plot()
             
         print("updating..")    
