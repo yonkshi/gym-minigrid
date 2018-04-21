@@ -148,13 +148,15 @@ class CaptureTheFlagBasic(CaptureTheFlagEnv):
 class CaptureTheFlagStatic(CaptureTheFlagEnv):
     def __init__(self):
         super().__init__(
-            gridSize=5,
+            gridSize=9,
         )
 
-    def _genGrid(self, width, height):
+    def _genGrid(self, width, height, RANDOM_RESET):
 
-        self.startPos = (self._randInt(0, width),self._randInt(0, height));
-        #self.startPos = (3,3);
+        if(RANDOM_RESET):
+            self.startPos = (self._randInt(0, width/2),self._randInt(0, height));
+        else:
+            self.startPos = (0,height);
 
         # Create the grid
         self.grid = Grid(width, height)
@@ -162,18 +164,20 @@ class CaptureTheFlagStatic(CaptureTheFlagEnv):
         height -= 1
 
         # Place the flag
-        self.grid.set(*(width,height), Flag('red'))
+        self.grid.set(*(4,0), Flag('red'))
 
         # Place the final goal
-        self.grid.set(*(0,0), Goal())
-        #self.grid.set(*(width-2, height-2), Goal())
+        self.grid.set(*(width,height), Goal())
 
         # Placing walls
-        #self.grid.set(*(1, 4), Wall())
-        #self.grid.set(*(2, 5), Wall())
-        #self.grid.set(*(4, 7), Wall())
-        #self.grid.set(*(7, 4), Wall())
-        #self.grid.set(*(8, 4), Wall())
+        self.grid.set(*(4, 1), Wall())
+        self.grid.set(*(4, 2), Wall())
+        self.grid.set(*(4, 3), Wall())
+        self.grid.set(*(4, 4), Wall())
+        self.grid.set(*(4, 5), Wall())
+        self.grid.set(*(4, 6), Wall())
+        self.grid.set(*(4, 7), Wall())
+        self.grid.set(*(4, 8), Wall())
 
         # Placing lava
         #self.grid.set(*(5, 5), Lava())

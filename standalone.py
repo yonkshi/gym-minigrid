@@ -31,7 +31,7 @@ def main():
 
     # trajectory data parameters
     tau_num = 1000; # number of trajectories
-    tau_len = 50; # length of each trajectories
+    tau_len = 100; # length of each trajectories
     
     # Load the gym environment
     env = gym.make(options.env_name)
@@ -45,27 +45,28 @@ def main():
 
     #renderer = env.render('human')
 
-    for episode in range(10000):
+    for episode in range(25000):
         for t in range(tau_len):
             
             if(q_expert.update(env,episode,False)):
-                q_expert.reset(env)
+                q_expert.reset(env,True)
                 break
-            #env.render('human')
-            #time.sleep(0.1)
+            if(episode%1000==0):
+                env.render('human')
+                time.sleep(0.1)
 
         if(episode%1000==0):
             print('Training expert episode:',episode)
                         
-    q_expert.reset(env)
+    q_expert.reset(env,False)
         
     for episode in range(tau_num):
         for t in range(tau_len):
             if(q_expert.update(env,episode,True)):
-                q_expert.reset(env)
+                q_expert.reset(env,False)
                 break
-            #env.render('human')
-            #time.sleep(0.1)
+            env.render('human')
+            time.sleep(0.01)
             
         print('Storing expert trajectory:',episode)
             

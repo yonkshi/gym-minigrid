@@ -659,16 +659,16 @@ class MiniGridEnv(gym.Env):
 
         # Initialize the state
         self.seed()
-        self.reset()
+        self.reset(True)
 
     def _genGrid(self, width, height):
         assert False, "_genGrid needs to be implemented by each environment"
 
-    def reset(self):
+    def reset(self,RANDOM_RESET):
         # Generate a new random grid at the start of each episode
         # To keep the same grid for each episode, call env.seed() with
         # the same seed before calling env.reset()
-        self._genGrid(self.gridSize, self.gridSize)
+        self._genGrid(self.gridSize, self.gridSize, RANDOM_RESET)
 
         # Place the agent in the starting position and direction
         self.agentPos = self.startPos

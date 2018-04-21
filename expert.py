@@ -13,7 +13,7 @@ class ExpertClass():
     def __init__(self,env,tau_num,tau_len):
 
         self.HEIRARCHICAL = True;
-        self.PLOT_V = False
+        self.PLOT_V = True
         self.EGREEDY = False
         
         # states
@@ -25,6 +25,7 @@ class ExpertClass():
 
         # meta-parameters
         self.epsilon = 1.0; # e-greedy
+        self.temp = 1.0; # soft-max temp        
         self.alpha = 0.01; # learning rate
         self.gamma = 0.7; # discount factor
         self.carried_flag = None;
@@ -41,8 +42,9 @@ class ExpertClass():
         self.TAU_S = np.zeros((self.tau_len, self.tau_num))-1 # matrix of states with all trajectories
         self.TAU_A = np.zeros((self.tau_len, self.tau_num))-1 # matrix of actions with all trajectories
         
-    def reset(self,env):
-        env.reset()
+    def reset(self,env,RANDOM_RESET):
+        #print("done!"+str(env.stepCount)+" steps")
+        env.reset(RANDOM_RESET)
         
     def get_action(self, env):
         if(self.HEIRARCHICAL):
@@ -56,7 +58,7 @@ class ExpertClass():
             else:
                 return np.argmax(self.q[s,:])
         else:
-            pi = np.exp(self.q[s,:]-np.max(self.q))
+            pi = np.exp(10.0*(self.q[s,:]-np.max(self.q)))
             pi = pi/np.sum(pi)
             return np.random.choice(range(env.action_space.n), p=pi)
 
@@ -77,49 +79,56 @@ class ExpertClass():
 
     def init_value_plot(self):
 
+        fig = plt.figure(figsize=(5,10))
+        
         # get initial plot config
-        fig = plt.figure(figsize=(5,5))
-        self.axes = fig.add_subplot(111)
-        self.axes.set_autoscale_on(True)
+        self.ax1 = fig.add_subplot(111);
+        self.ax1.set_autoscale_on(True);
 
         # get value from q-function
         q_max = np.max(self.q,1)
-        v = np.reshape(q_max[:self.gridSize*self.gridSize],(self.gridSize,self.gridSize))
-
+        v = np.reshape(q_max,(self.gridSize*2,self.gridSize))
+        
         # plot value function
-        self.v_plotter = plt.imshow(v,interpolation='none', cmap='viridis', vmin=v.min(), vmax=v.max());
-        plt.colorbar(); plt.xticks([]); plt.yticks([]); self.axes.grid(False);
-        plt.title('true value function'); plt.ion(); plt.show();
+        self.v1_plotter = plt.imshow(v,interpolation='none', cmap='viridis', vmin=v.min(), vmax=v.max());
+        plt.xticks([]); plt.yticks([]); plt.grid(False); plt.colorbar();
+
+        plt.title('true value function'); plt.ion(); plt.show();        
         
     def see_value_plot(self):
-        q_max = np.max(self.q,1)        
-        v = np.reshape(q_max[:self.gridSize*self.gridSize],(self.gridSize,self.gridSize))        
-        self.v_plotter.set_data(v)
-        plt.clim(v.min(),v.max()) 
+        q_max = np.max(self.q,1)                
+        v1 = np.reshape(q_max,(self.gridSize*2,self.gridSize))        
+        self.v1_plotter.set_data(v1)
+
+        plt.clim(np.min(v1),np.max(v1)) 
         plt.draw(); plt.show()
         plt.pause(0.0001)
         
     def update(self,env,episode,STORE):
         
         if(STORE):
-            self.epsilon = 0.2
+            self.temp = 10.0;
         else:
-            self.epsilon = 0.3        
+            self.temp = 1.0;        
 
         if(self.HEIRARCHICAL):
-            s = env.agentPos[0]+self.gridSize*env.agentPos[1]+int((env.carrying!=None)*self.num_states/2);
+            s = env.agentPos[0]+self.gridSize*env.agentPos[1] + int((env.carrying!=None)*self.num_states/2);
         else:
-            s = env.agentPos[0]+self.gridSize*env.agentPos[1];            
+            s = env.agentPos[0]+self.gridSize*env.agentPos[1]
+
         a = self.get_action(env)
 
         obs, r, done, info = env.step(a)
-
-        # sub-goal #experimental
-        #r = r or (env.carrying!=None and self.carried_flag==None)
-        #self.carried_flag = env.carrying        
+                
+        # sub-goal
+        if(self.HEIRARCHICAL):
+            if(env.carrying!=None and self.carried_flag==None): #if reached sub-goal
+                r = 1 # sub-goal reached
+                a = env.actions.move_right # push the agent through the door                
+            self.carried_flag = env.carrying                        
         
         if(self.HEIRARCHICAL):
-            s_prime = env.agentPos[0] + self.gridSize*env.agentPos[1]+int((env.carrying!=None)*self.num_states/2);
+            s_prime = env.agentPos[0] + self.gridSize*env.agentPos[1] + int((env.carrying!=None)*self.num_states/2);
         else:
             s_prime = env.agentPos[0] + self.gridSize*env.agentPos[1];
 
