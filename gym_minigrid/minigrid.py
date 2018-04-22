@@ -929,6 +929,26 @@ class MiniGridEnv(gym.Env):
         return done, reward
 
     ## user defined function
+    ## thanks to: naresh, anna, yonk
+    def identify_type(self, s):
+
+        states = (int(s % self.gridSize), int(s / self.gridSize))
+        #state_type = self.grid.get(states[0], states[1])
+
+        known = ['goal', 'wall', 'flag']
+        check = self.grid.get(*states)
+        empty = self.grid.get(*states) == None
+        object = self.grid.get(*states) != None
+
+        if empty:
+            return (s, 0)
+        if object and any(i in check.type for i in known):
+            return (s, 1)
+        else:
+            return (s, "?")
+
+
+    ## user defined function
     ## state, state_prime are integer indices
     ## action is integer index too
     ## thanks to: naresh, anna, yonk
@@ -964,6 +984,7 @@ class MiniGridEnv(gym.Env):
             return 1.0;
         else:
             return 0.0;
+
     
     def _genObs(self):
         """

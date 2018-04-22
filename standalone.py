@@ -12,6 +12,7 @@ import ipdb
 def main():
     
     MODE = "inverse"
+    risk_mode = True
     
     parser = OptionParser()
     parser.add_option(
@@ -29,6 +30,9 @@ def main():
     tau_len = 100; # length of each trajectories
     
     # Load the gym environment
+    test_env_name = 'MiniGrid-CaptureTheFlag-Test-v0'
+    test_env = gym.make(test_env_name)
+    
     env = gym.make(options.env_name)
     env.maxSteps = tau_len; # maximum time for an episode = length of our trajectory
         
@@ -74,12 +78,12 @@ def main():
 
         print("inverse mode")
         
-        # load inverse rl agent
-        maxent_learner = hirl.HInverseAgentClass(env,tau_num,tau_len)        
-
         # load traj
         TAU = np.load('expert_traj.npy')
-        TAU = TAU[:,:,0:100]
+        TAU = TAU[:,:,0:100]            
+            
+        # load inverse rl agent
+        maxent_learner = hirl.HInverseAgentClass(env, test_env, tau_num, tau_len, risk_mode=risk_mode)
 
         ## inverse RL mode: learn MaxEnt IRL from trajectories        
         maxent_learner.store_trajectories(TAU);

@@ -7,6 +7,7 @@ import time
 from optparse import OptionParser
 import ipdb
 import random
+import risk as risk
 
 import matplotlib.pyplot as plt
 
@@ -15,7 +16,11 @@ import matplotlib.pyplot as plt
 # -----------------------------
 class HInverseAgentClass():
     
-    def __init__(self, env, tau_num, tau_len):
+    def __init__(self, env, test_env, tau_num, tau_len, risk_mode):
+
+        self.risk_mode = risk_mode
+        self.env = env
+        self.test_env = test_env
 
         self.tau_num = tau_num; # number of trajectories
         self.tau_len = tau_len; # length of each trajectory
@@ -48,6 +53,10 @@ class HInverseAgentClass():
         self.TAU_S = TAU[0];
         self.TAU_A = TAU[1];
 
+        if self.risk_mode:
+            self.risk_taker = risk.RiskClass(self.env,self.test_env,self.TAU_S)
+
+
     ## [STEP:1] do value iteration with the current r(s;psi) and update pi
     def value_iteration(self,env):
 
@@ -68,14 +77,13 @@ class HInverseAgentClass():
 
         # get pi(a|s) = argmax_a sum_s' (r(s')+gamma*v(s'))
         for s in range(self.num_states):
-            #greedy_action = np.argmax([np.sum([ env.T_sas(s,a,s_prime)*(self.reward(s_prime)+self.gamma*self.value[s_prime])
-            #                                    for s_prime in range(self.num_states)])
-            #                           for a in range(self.num_actions)])
             for a in range(self.num_actions):
-                #self.pi[s,a] = 1.0 if a==greedy_action else 0.0;
                 self.pi[s,a] = np.exp(np.sum([ env.T_sas(s,a,s_prime)*(self.reward[s_prime]+self.gamma*self.value[s_prime]) for s_prime in range(self.num_states)]))
-                
+                                    
             self.pi[s,:] /= np.sum(self.pi[s,:])
+
+        if self.risk_mode==True and self.risk_taker.test_MDPs(self.env,self.test_env)==0:
+            self.pi = self.risk_taker.alter_policy_for_risk(self.pi)
 
     ## get SOFTMAX reward: r(s;psi) = softmax(psi.phi) = softmax(psi[s])
     def compute_reward_from_psi(self):
