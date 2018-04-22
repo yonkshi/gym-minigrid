@@ -2,21 +2,16 @@
 
 from __future__ import division, print_function
 
-import sys
-import numpy
-import gym
-import time
+import sys,time
+import numpy as np,gym
 from optparse import OptionParser
-
-import gym_minigrid
-import expert
-import inverse_agent
+import gym_minigrid,expert,inverse_agent,hirl
+from tempfile import TemporaryFile
+import ipdb
 
 def main():
     
-    basic_mode = True
-    expert_mode = True
-    inverse_mode = False
+    MODE = "inverse"
     
     parser = OptionParser()
     parser.add_option(
@@ -37,46 +32,58 @@ def main():
     env = gym.make(options.env_name)
     env.maxSteps = tau_len; # maximum time for an episode = length of our trajectory
         
-    # Load expert agent / inverse learner
-    q_expert = expert.ExpertClass(env,tau_num,tau_len)
-    maxent_learner = inverse_agent.InverseAgentClass(env,tau_num,tau_len)        
-
-    ## expert_mode: get expert trajectories
-
-    #renderer = env.render('human')
-
-    for episode in range(25000):
-        for t in range(tau_len):
-            
-            if(q_expert.update(env,episode,False)):
-                q_expert.reset(env,True)
-                break
-            if(episode%1000==0):
-                env.render('human')
-                time.sleep(0.1)
-
-        if(episode%1000==0):
-            print('Training expert episode:',episode)
-                        
-    q_expert.reset(env,False)
+    if(MODE=="expert"):
         
-    for episode in range(tau_num):
-        for t in range(tau_len):
-            if(q_expert.update(env,episode,True)):
-                q_expert.reset(env,False)
-                break
-            env.render('human')
-            time.sleep(0.01)
-            
-        print('Storing expert trajectory:',episode)
-            
-    ## get traj    
-    TAU = q_expert.get_tau(PRINT=False);
-    
-    ## inverse RL mode: learn MaxEnt IRL from trajectories
+        # Load expert agent
+        q_expert = expert.ExpertClass(env,tau_num,tau_len)
 
-    maxent_learner.store_trajectories(TAU);
-    maxent_learner.update(env,PRINT=True) 
+        # training
+        for episode in range(25000):
+            for t in range(tau_len):                
+                done, r = q_expert.update(env,episode,False)
+                if done:
+                    q_expert.reset(env,True)
+                    break
+                #if(episode%1000==0):
+                #    env.render('human')
+                #    time.sleep(0.05)
+
+            if(episode%1000==0):
+                print('Training expert episode:',episode)
+                        
+        q_expert.reset(env,False)
+        
+        # testing (store successful expert trajectories)
+        success_episode = 0
+        while success_episode<tau_num:
+            for t in range(tau_len):
+                done, r = q_expert.update(env,episode,True)
+                if r: #if main goal reached
+                    success_episode += 1                
+                if done:  # if episode done
+                    q_expert.reset(env,False)
+                    break
+                env.render('human')
+                time.sleep(0.05)
+                        
+        ## get traj    
+        TAU = q_expert.get_tau();
+        np.save('expert_traj.npy', TAU)
+        
+    elif(MODE=="inverse"):
+
+        print("inverse mode")
+        
+        # load inverse rl agent
+        maxent_learner = hirl.HInverseAgentClass(env,tau_num,tau_len)        
+
+        # load traj
+        TAU = np.load('expert_traj.npy')
+        TAU = TAU[:,:,0:100]
+
+        ## inverse RL mode: learn MaxEnt IRL from trajectories        
+        maxent_learner.store_trajectories(TAU);
+        maxent_learner.update(env,PRINT=True) 
 
 if __name__ == "__main__":
     main()

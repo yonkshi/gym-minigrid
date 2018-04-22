@@ -13,38 +13,42 @@ import matplotlib.pyplot as plt
 # -----------------------------
 # ---MaxEnt Inverse RL agent---
 # -----------------------------
-class InverseAgentClass():
+class HInverseAgentClass():
     
     def __init__(self, env, tau_num, tau_len):
 
         self.tau_num = tau_num; # number of trajectories
         self.tau_len = tau_len; # length of each trajectory
         self.gamma = 0.9; # discount factor
-        self.alpha = 0.01; # learning rate
+        self.alpha = 10.0; # learning rate
         
         self.gridSize = env.gridSize
         self.num_states = self.gridSize*self.gridSize # number of states
         self.num_actions = env.action_space.n # number of actions
 
         ## POLICY / value-FUNCTIONS
-        #self.theta = np.round(np.random.rand(self.num_states,self.num_actions),2) # policy parameter theta # should we parametrize pi??
         self.pi = np.round(np.random.rand(self.num_states,self.num_actions),2)
         self.pi = (self.pi.T/np.sum(self.pi,1)).T
         self.value = np.zeros((self.num_states))
 
-        ## REWARD
+        ## REWARD r(s;psi) = softmax(psi.s)
         self.psi = np.random.rand(self.num_states); # reward function parameter
+        self.expo = np.random.random(self.num_states) # (optimizing) store exp(psi[s]) from psi
+        self.reward = np.random.rand(self.num_states) # (optimizing) store reward function from psi
+
+        self.compute_reward_from_psi()
 
         ## plot reward function
         self.init_reward_plot()
 
-    # STEP:0 store all trajectories data (states and actions seperately)
+    ######## 4-step MaxEnt #########
+    
+    # [STEP:0] store all trajectories data (states and actions seperately)
     def store_trajectories(self, TAU):
         self.TAU_S = TAU[0];
         self.TAU_A = TAU[1];
 
-    ## STEP:1 value-iteration
-    ## perform value iteration with the current R(s;psi) and update pi(a|s;theta)
+    ## [STEP:1] do value iteration with the current r(s;psi) and update pi
     def value_iteration(self,env):
 
         value_threshold = 0.001;
@@ -53,7 +57,7 @@ class InverseAgentClass():
             update_difference = -999;
             for s in range(self.num_states):
                 old_value = self.value[s]
-                self.value[s] = np.max( [np.sum([ env.T_sas(s,a,s_prime)*(self.reward(s_prime)+self.gamma*self.value[s_prime])
+                self.value[s] = np.max( [np.sum([ env.T_sas(s,a,s_prime)*(self.reward[s_prime]+self.gamma*self.value[s_prime])
                                                   for s_prime in range(self.num_states)])
                                          for a in range(self.num_actions)])
                 update_difference = max(update_difference, abs(old_value-self.value[s]))
@@ -69,35 +73,34 @@ class InverseAgentClass():
             #                           for a in range(self.num_actions)])
             for a in range(self.num_actions):
                 #self.pi[s,a] = 1.0 if a==greedy_action else 0.0;
-                self.pi[s,a] = np.exp(np.sum([ env.T_sas(s,a,s_prime)*(self.reward(s_prime)+self.gamma*self.value[s_prime]) for s_prime in range(self.num_states)]))
+                self.pi[s,a] = np.exp(np.sum([ env.T_sas(s,a,s_prime)*(self.reward[s_prime]+self.gamma*self.value[s_prime]) for s_prime in range(self.num_states)]))
                 
             self.pi[s,:] /= np.sum(self.pi[s,:])
 
-        ## TODO: CHECK FOR CORRECTNESS OF PI!
+    ## get SOFTMAX reward: r(s;psi) = softmax(psi.phi) = softmax(psi[s])
+    def compute_reward_from_psi(self):
+        for s in range(self.num_states):
+            self.expo[s] = np.exp(self.psi[s])
+        self.reward = self.expo/np.sum(self.expo)
 
-    ## get reward: r(s;psi)
-    ## reward function is linear r(s;pi)= psi(i) phi(i)
-    def reward(self,s):
-        return self.psi[s];
-                    
     # get policy: pi(a|s,theta)
     def policy(self,env,s,a):
-        #return np.exp(self.theta[s,a])/ np.sum([np.exp(self.theta[s,b]) for b in range(self.num_actions)])
         return self.pi[s,a]
 
     ## STEP:2.1 compute P(s | TAU, T)
     ## find the state-visition frequency for the provided trajectories
-    def get_state_visitation_frequency_under_TAU(self,env):
+    def get_feature_count_under_TAU(self,env):
 
-        # mu_tau[state, time] is the prob of visiting state s at time t FROM our trajectories         
-        mu_tau = np.zeros([self.num_states])        
-        
+        r_trail = np.zeros([self.num_states])        
+
         for tau_i in self.TAU_S.T:
             for tau_it in tau_i:
                 if(tau_it>=0):
-                    mu_tau[int(tau_it)] += 1.0
+                    r_trail[int(tau_it)] += self.reward[int(tau_it)]
 
-        return mu_tau
+        r_trail = r_trail - self.reward*np.sum(r_trail)
+
+        return r_trail  
     
     ## STEP:2.2 compute P(s | pi_theta, T)
     ## find the state-visitation frequency for all states
@@ -118,7 +121,12 @@ class InverseAgentClass():
                 mu[state_next, time+1] +=  np.sum([np.sum([mu[state, time] * self.policy(env,state,action) * env.T_sas(state,action,state_next)
                                                            for action in range(self.num_actions)])
                                                    for state in range(self.num_states)])
-        return np.sum(mu, 1) # squeeze throughout time and return
+    
+        mu = np.sum(mu, 1); # state-visitation frequency squeeze throughout time        
+        
+        term2 = np.multiply(mu,self.reward)
+        term2 = term2 - np.sum(term2)*self.reward            
+        return term2
 
     #### plotters
     def init_reward_plot(self):
@@ -127,19 +135,24 @@ class InverseAgentClass():
         self.axes = fig.add_subplot(111)
         self.axes.set_autoscale_on(True)
 
-        r = np.reshape(self.psi,(self.gridSize,self.gridSize));
+        r = np.reshape(self.reward,(self.gridSize,self.gridSize));
 
         self.r_plotter = plt.imshow(r,interpolation='none', cmap='viridis', vmin=r.min(), vmax=r.max());
         plt.colorbar(); plt.xticks([]); plt.yticks([]); self.axes.grid(False);
         plt.title('inferred reward'); plt.ion(); plt.show();
         
     def see_reward_plot(self):
-        r = np.reshape(self.psi,(self.gridSize,self.gridSize))        ;
+        r = np.reshape(self.reward,(self.gridSize,self.gridSize))        ;
         self.r_plotter.set_data(r)
         plt.clim(r.min(),r.max()) 
         plt.draw(); plt.show()
         plt.pause(0.0001)
 
+    #######################################
+    ############### hirl ##################
+    #######################################
+    
+    # TODO: compute H(r(.|psi))
     def compute_entropy(self,env):
         fig = plt.figure(figsize=(5,5))
         state_entropy = np.zeros([self.num_states])
@@ -154,8 +167,7 @@ class InverseAgentClass():
         
     def update(self,env,PRINT):
 
-        mu_tau = self.get_state_visitation_frequency_under_TAU(env)
-        counter = 0;
+        term1 = self.get_feature_count_under_TAU(env)
 
         #self.compute_entropy(env)
         
@@ -164,16 +176,16 @@ class InverseAgentClass():
             self.value_iteration(env);
             
             # [STEP:2] compute state-visitation frequencies under tau / otherwise
-            mu = self.get_state_visitation_frequency(env)
-
+            term2 = self.get_state_visitation_frequency(env)
+            
             # [STEP:3] find gradient
-            grad = mu_tau/self.tau_num - mu;            
+            grad = term1/self.tau_num - term2;            
             
             # [STEP:4] update psi of r(s;psi)
             self.psi = self.psi + self.alpha*grad;
-            counter+=1;
-
+            self.compute_reward_from_psi()
+        
             self.see_reward_plot()
-            print("f_tau=",np.sum(mu_tau/self.tau_num)," mu=",np.sum(mu)," gradient=",np.sum(grad))
-
+            print("t1=",np.sum(np.abs(term1/self.tau_num))," t2=",np.sum(np.abs(term2))," gradient=",np.sum(np.abs(grad)))
+        
         print("updating..")    

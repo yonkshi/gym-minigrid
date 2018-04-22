@@ -41,11 +41,24 @@ class ExpertClass():
 
         self.TAU_S = np.zeros((self.tau_len, self.tau_num))-1 # matrix of states with all trajectories
         self.TAU_A = np.zeros((self.tau_len, self.tau_num))-1 # matrix of actions with all trajectories
+
+        self.tau_s = np.zeros((self.tau_len))-1
+        self.tau_a = np.zeros((self.tau_len))-1
+        self.tau_time=0;
+        self.tau_episode=0
         
     def reset(self,env,RANDOM_RESET):
         #print("done!"+str(env.stepCount)+" steps")
         env.reset(RANDOM_RESET)
+        self.tau_s = np.zeros((self.tau_len))-1
+        self.tau_a = np.zeros((self.tau_len))-1
+        self.tau_time = 0
+
         
+    ###################
+    ##### core RL #####
+    ###################
+
     def get_action(self, env):
         if(self.HEIRARCHICAL):
             s = env.agentPos[0] + self.gridSize*env.agentPos[1] + int((env.carrying!=None)*self.num_states/2);
@@ -62,21 +75,39 @@ class ExpertClass():
             pi = pi/np.sum(pi)
             return np.random.choice(range(env.action_space.n), p=pi)
 
-    def store_tau(self,episode,time,state,action):
-        if(self.HEIRARCHICAL):
-            self.TAU_S[time][episode] = int(state%(self.gridSize*self.gridSize));
-        else:
-            self.TAU_S[time][episode] = int(state);            
-        self.TAU_A[time][episode] = int(action);
-
-    def get_tau(self,PRINT):
-        if(PRINT):
-            print(self.TAU_S.T,self.TAU_A.T)
-        return (self.TAU_S,self.TAU_A)
-        
     def update_q(self,s,a,r,s_prime):
         self.q[s,a] = self.q[s,a] + self.alpha*(r + self.gamma*np.max(self.q[s_prime,:]) - self.q[s,a])
 
+    ########################
+    ##### Trajectories #####
+    ########################
+    
+    def record_tau(self,state,action):
+        if(self.tau_time>self.tau_len):
+            print("Time exceeded for storing trajectories")
+        if(self.HEIRARCHICAL):
+            self.tau_s[self.tau_time] = int(state%(self.gridSize*self.gridSize));
+        else:
+            self.tau_s[self.tau_time] = int(state);            
+        self.tau_a[self.tau_time] = int(action);
+        self.tau_time += 1
+        
+    def store_tau(self,episode):
+        self.TAU_S[:,self.tau_episode] = self.tau_s
+        self.TAU_A[:,self.tau_episode] = self.tau_a
+
+        print("\ntau(",self.tau_episode,"): ",sep='',end='')
+        for s in self.tau_s:
+            print(int(s),',',sep='',end='')
+        self.tau_episode += 1
+
+    def get_tau(self):
+        return (self.TAU_S,self.TAU_A)
+        
+    ####################
+    ##### plotters #####
+    ####################
+    
     def init_value_plot(self):
 
         fig = plt.figure(figsize=(5,10))
@@ -84,7 +115,7 @@ class ExpertClass():
         # get initial plot config
         self.ax1 = fig.add_subplot(111);
         self.ax1.set_autoscale_on(True);
-
+        
         # get value from q-function
         q_max = np.max(self.q,1)
         v = np.reshape(q_max,(self.gridSize*2,self.gridSize))
@@ -104,6 +135,11 @@ class ExpertClass():
         plt.draw(); plt.show()
         plt.pause(0.0001)
         
+    ###################
+    ##### update ######
+    ###################
+
+    # returns (episode done?, main goal reached?)
     def update(self,env,episode,STORE):
         
         if(STORE):
@@ -112,19 +148,23 @@ class ExpertClass():
             self.temp = 1.0;        
 
         if(self.HEIRARCHICAL):
-            s = env.agentPos[0]+self.gridSize*env.agentPos[1] + int((env.carrying!=None)*self.num_states/2);
+            s = env.agentPos[0] + self.gridSize*env.agentPos[1] + int((env.carrying!=None)*self.num_states/2);
         else:
-            s = env.agentPos[0]+self.gridSize*env.agentPos[1]
+            s = env.agentPos[0] + self.gridSize*env.agentPos[1]
 
         a = self.get_action(env)
 
+        if (env.agentPos[0]<0 and env.agentPos[0]>=env.gridSize and env.agentPos[1]<0 and env.agentPos[1]>env.gridSize):
+            print("What's wrong with state values?!")
+
         obs, r, done, info = env.step(a)
-                
+
+        main_task_done = r
+
         # sub-goal
         if(self.HEIRARCHICAL):
             if(env.carrying!=None and self.carried_flag==None): #if reached sub-goal
                 r = 1 # sub-goal reached
-                a = env.actions.move_right # push the agent through the door                
             self.carried_flag = env.carrying                        
         
         if(self.HEIRARCHICAL):
@@ -136,12 +176,14 @@ class ExpertClass():
 
         if done and self.PLOT_V and episode%100==0:
             self.see_value_plot()
-
+            
         if(STORE):
-            self.store_tau(episode,env.stepCount-1,s,a);
-            #if(done):
-            #    self.store_tau(episode,env.stepCount,s_prime,-1);         
-        return done
+            self.record_tau(s,a)            
+            if(main_task_done):
+                self.store_tau(episode);
+                return done,True 
+                
+        return done,False
         
             
 
