@@ -3,7 +3,7 @@ import matplotlib.patches as patches
 import numpy as np
 import os
 def plot_policyquiver():
-    file = os.path.join('plots', 'flag', 'manager.pi.npy')
+    file = os.path.join('plots', 'risky', 'worker.pi.npy')
     data = np.load(file)
 
     grid_size = np.sqrt(data.shape[0]).astype('int')
@@ -41,19 +41,19 @@ def plot_policyquiver():
     ax = plt.gca()
     ax.set_facecolor('black')
     ###  Wall
-    # ax.add_patch(
-    #     patches.Rectangle(
-    #         (4, 0),  # (x,y)
-    #         1,  # width
-    #         9,  # height
-    #         color='#333333'
-    #     )
-    # )
+    ax.add_patch(
+        patches.Rectangle(
+            (4, 5),  # (x,y)
+            1,  # width
+            1,  # height
+            color='red'
+        )
+    )
     #plt.ylim((1,10))
     ax.set_xticklabels([])
     ax.set_yticklabels([])
     ax.grid(color='white', linestyle=':', linewidth=.5)
-    plt.savefig('plots/flag_captureflag_gradient.png',
+    plt.savefig('plots/risky_returnhome_gradient.png',
                 bbox_inches='tight',
                pad_inches=0)
     plt.show()
