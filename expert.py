@@ -178,8 +178,10 @@ class ExpertClass():
             self.see_value_plot()
             
         if(STORE):
-            self.record_tau(s,a)            
-            if(main_task_done):
+            self.record_tau(s,a); 
+            if(main_task_done):                
+                self.record_tau(s_prime,env.action_space.sample());
+
                 self.store_tau(episode);
                 return done,True 
                 

@@ -15,12 +15,21 @@ import matplotlib.pyplot as plt
 # -----------------------------
 class InverseAgentClass():
     
-    def __init__(self, env, tau_num, tau_len):
+    def __init__(self, env, test_env, tau_num, tau_len, risk_mode):
 
+        ## risk mode setting
+        self.risk_mode = risk_mode
+        self.env = env
+        self.test_env = test_env        
+
+        ## gradient converge check
+        self.gradient_history =  [];
+
+        # rl meta-parameters
         self.tau_num = tau_num; # number of trajectories
         self.tau_len = tau_len; # length of each trajectory
         self.gamma = 0.9; # discount factor
-        self.alpha = 0.01; # learning rate
+        self.alpha = 0.1; # learning rate
         
         self.gridSize = env.gridSize
         self.num_states = self.gridSize*self.gridSize # number of states
@@ -73,7 +82,8 @@ class InverseAgentClass():
                 
             self.pi[s,:] /= np.sum(self.pi[s,:])
 
-        ## TODO: CHECK FOR CORRECTNESS OF PI!
+        if self.risk_mode==True and self.risk_taker.test_MDPs(self.env,self.test_env)==0:
+            self.pi = self.risk_taker.alter_policy_for_risk(self.pi)
 
     ## get reward: r(s;psi)
     ## reward function is linear r(s;pi)= psi(i) phi(i)
@@ -140,26 +150,24 @@ class InverseAgentClass():
         plt.draw(); plt.show()
         plt.pause(0.0001)
 
-    def compute_entropy(self,env):
-        fig = plt.figure(figsize=(5,5))
-        state_entropy = np.zeros([self.num_states])
-        for tau_i in self.TAU_S.T:
-            for tau_it in tau_i:
-                if(tau_it>=0):
-                    state_entropy[int(tau_it)] += 1.0
-        state_entropy = state_entropy/np.sum(self.TAU_S>=0)
-        plt.imshow(np.reshape(state_entropy,(env.gridSize,env.gridSize)),interpolation='none', cmap='viridis')
-        plt.colorbar(); plt.xticks([]); plt.yticks([]);        
-        plt.title('state prob'); plt.ioff(); plt.show();
+    #####################################################
+    ############### sub-goal discovery ##################
+    #####################################################
+
+    def get_subgoal(self):
+
+        self.env.reset(False) # reset, but not random reset
+        start_s = env.agentPos[0] + self.gridSize*env.agentPos[1]
+        self.reward[start_s] = 0
+        ipdb.set_trace()
+        return np.argmax(self.reward)
         
     def update(self,env,PRINT):
 
         mu_tau = self.get_state_visitation_frequency_under_TAU(env)
-        counter = 0;
 
-        #self.compute_entropy(env)
-        
-        while True:
+        for step in range(1000):
+
             # [STEP:1] solve for optimal policy: do policy iteration on r(s;psi)
             self.value_iteration(env);
             
@@ -171,9 +179,18 @@ class InverseAgentClass():
             
             # [STEP:4] update psi of r(s;psi)
             self.psi = self.psi + self.alpha*grad;
-            counter+=1;
 
+            # print, plot, and debug
             self.see_reward_plot()
             print("f_tau=",np.sum(mu_tau/self.tau_num)," mu=",np.sum(mu)," gradient=",np.sum(grad))
+            self.gradient_history.append(np.sum(np.abs(grad)))
 
+            # convergence check
+            if step>4:
+                if all(np.isclose(self.gradient_history[-2:],self.gradient_history[-4:-2],0.01)):
+                    break
+
+        print(self.gradient_history)
+        return self.get_subgoal()
+            
         print("updating..")    

@@ -111,6 +111,9 @@ class CaptureTheFlagEnv(MiniGridEnv):
             self.previous_pos = self.agentPos
             self.agentPos = newPos
         elif targetCell.type == 'goal' and isinstance(self.carrying, Flag):
+            self.previous_cell = targetCell
+            self.previous_pos = self.agentPos
+            self.agentPos = newPos
             done = True
             reward = 1; #100 - self.stepCount
         elif targetCell.type == 'lava':

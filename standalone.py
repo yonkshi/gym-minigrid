@@ -12,7 +12,7 @@ import ipdb
 def main():
     
     MODE = "inverse"
-    risk_mode = True
+    risk_mode = False
     
     parser = OptionParser()
     parser.add_option(
@@ -43,7 +43,8 @@ def main():
 
         # training
         for episode in range(25000):
-            for t in range(tau_len):                
+            q_expert.reset(env,True)
+            for t in range(tau_len-1):                
                 done, r = q_expert.update(env,episode,False)
                 if done:
                     q_expert.reset(env,True)
@@ -60,15 +61,16 @@ def main():
         # testing (store successful expert trajectories)
         success_episode = 0
         while success_episode<tau_num:
-            for t in range(tau_len):
+            q_expert.reset(env,False)
+            for t in range(tau_len-1):
                 done, r = q_expert.update(env,episode,True)
                 if r: #if main goal reached
                     success_episode += 1                
                 if done:  # if episode done
                     q_expert.reset(env,False)
                     break
-                env.render('human')
-                time.sleep(0.05)
+                #env.render('human')
+                #time.sleep(0.05)
                         
         ## get traj    
         TAU = q_expert.get_tau();
@@ -84,10 +86,23 @@ def main():
             
         # load inverse rl agent
         maxent_learner = hirl.HInverseAgentClass(env, test_env, tau_num, tau_len, risk_mode=risk_mode)
-
+        #maxent_learner = inverse_agent.InverseAgentClass(env, test_env, tau_num, tau_len, risk_mode=risk_mode)
+        
         ## inverse RL mode: learn MaxEnt IRL from trajectories        
         maxent_learner.store_trajectories(TAU);
-        maxent_learner.update(env,PRINT=True) 
+        subgoal = maxent_learner.update(env,PRINT=True)
+
+        ############
+
+        TAU_SPLIT = (np.split(TAU[0],[int(subgoal)])[1], np.split(TAU[1],[int(subgoal)])[1]) ## split traj at subgoal and get latter
+
+        # load inverse rl agent
+        #maxent_learner = inverse_agent.InverseAgentClass(env, test_env, tau_num, tau_len, risk_mode=risk_mode)        
+        maxent_learner = hirl.HInverseAgentClass(env, test_env, tau_num, tau_len, risk_mode=risk_mode)
+
+        ## inverse RL mode: learn MaxEnt IRL from trajectories        
+        maxent_learner.store_trajectories(TAU_SPLIT);
+        subgoal = maxent_learner.update(env,PRINT=True)
 
 if __name__ == "__main__":
     main()

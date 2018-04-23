@@ -18,14 +18,19 @@ class HInverseAgentClass():
     
     def __init__(self, env, test_env, tau_num, tau_len, risk_mode):
 
+        # risk mode setting
         self.risk_mode = risk_mode
         self.env = env
         self.test_env = test_env
 
+        ## gradient converge check
+        self.gradient_history =  [];
+
+        # rl meta-parameters
         self.tau_num = tau_num; # number of trajectories
         self.tau_len = tau_len; # length of each trajectory
         self.gamma = 0.9; # discount factor
-        self.alpha = 10.0; # learning rate
+        self.alpha = 1.0; # learning rate
         
         self.gridSize = env.gridSize
         self.num_states = self.gridSize*self.gridSize # number of states
@@ -45,6 +50,9 @@ class HInverseAgentClass():
 
         ## plot reward function
         self.init_reward_plot()
+
+        ## ENTROPY REG
+        self.entropy_under_tau = 0
 
     ######## 4-step MaxEnt #########
     
@@ -156,30 +164,76 @@ class HInverseAgentClass():
         plt.draw(); plt.show()
         plt.pause(0.0001)
 
+    #####################################################
+    ############### sub-goal discovery ##################
+    #####################################################
+
+    def get_subgoal(self):
+        ipdb.set_trace()
+        return np.argmax(self.reward)
+
     #######################################
     ############### hirl ##################
     #######################################
     
-    # TODO: compute H(r(.|psi))
-    def compute_entropy(self,env):
-        fig = plt.figure(figsize=(5,5))
-        state_entropy = np.zeros([self.num_states])
+    # compute H(r(s)) for s in TAU
+    def compute_entropy_under_tau(self,env):
+        #fig = plt.figure(figsize=(5,5))
+        rprob = np.zeros([self.num_states])
         for tau_i in self.TAU_S.T:
             for tau_it in tau_i:
                 if(tau_it>=0):
-                    state_entropy[int(tau_it)] += 1.0
-        state_entropy = state_entropy/np.sum(self.TAU_S>=0)
-        plt.imshow(np.reshape(state_entropy,(env.gridSize,env.gridSize)),interpolation='none', cmap='viridis')
-        plt.colorbar(); plt.xticks([]); plt.yticks([]);        
-        plt.title('state prob'); plt.ioff(); plt.show();
+                    rprob[int(tau_it)] += self.reward[int(tau_it)]
+        rprob = rprob/np.sum(self.TAU_S>=0)
+
+        log_rprob = np.log(rprob);
+        log_rprob[log_rprob==np.inf]=0; log_rprob[log_rprob==-np.inf]=0;
+
+        self.entropy_under_tau = -np.multiply(rprob,log_rprob)
         
+        #plt.imshow(np.reshape(self.entropy_under_tau, (env.gridSize,env.gridSize)),interpolation='none', cmap='viridis')
+        #plt.colorbar(); plt.xticks([]); plt.yticks([]);        
+        #plt.title('H(r) for s in TAU'); plt.ioff(); plt.show();    
+
+    # compute H(r(s)) for all s
+    def compute_entropy(self,env):
+
+        #fig = plt.figure(figsize=(5,5))
+        rprob = self.reward
+        log_rprob = np.log(rprob);
+        log_rprob[log_rprob==np.inf]=0;log_rprob[log_rprob==-np.inf]=0;
+
+        self.entropy = -np.multiply(rprob,log_rprob)
+        
+        #plt.imshow(np.reshape(self.entropy, (env.gridSize,env.gridSize)),interpolation='none', cmap='viridis')
+        #plt.colorbar(); plt.xticks([]); plt.yticks([]);        
+        #plt.title('H(r) for all S'); plt.ioff(); plt.show();    
+
+    def grad_entropy(self,env):
+
+        r_under_tau = np.zeros([self.num_states])        
+
+        for tau_i in self.TAU_S.T:
+            for tau_it in tau_i:
+                if(tau_it>=0):
+                    r_under_tau[int(tau_it)] += self.reward[int(tau_it)]
+
+        return self.entropy_under_tau - r_under_tau*np.sum(self.entropy)
+        
+        #return self.entropy_under_tau - self.reward*np.sum(self.entropy_under_tau)
+        
+        #plt.imshow(np.reshape(entropy_under_tau, (env.gridSize,env.gridSize)),interpolation='none', cmap='viridis')
+        #plt.colorbar(); plt.xticks([]); plt.yticks([]);        
+        #plt.title('state prob'); plt.ioff(); plt.show();    
+
     def update(self,env,PRINT):
 
         term1 = self.get_feature_count_under_TAU(env)
 
-        #self.compute_entropy(env)
-        
-        while True:
+        for step in range(10):
+
+            print("computing gradient.. ",end='')
+            
             # [STEP:1] solve for optimal policy: do policy iteration on r(s;psi)
             self.value_iteration(env);
             
@@ -187,13 +241,26 @@ class HInverseAgentClass():
             term2 = self.get_state_visitation_frequency(env)
             
             # [STEP:3] find gradient
-            grad = term1/self.tau_num - term2;            
+            grad = term1/self.tau_num - term2
             
+            # [STEP:3.5] alter to entropy gradient
+            #self.compute_entropy_under_tau(env)
+            #self.compute_entropy(env)
+            #grad = grad - self.grad_entropy(env)/self.tau_num
+
             # [STEP:4] update psi of r(s;psi)
             self.psi = self.psi + self.alpha*grad;
             self.compute_reward_from_psi()
-        
+
+            ## print and convergence check grads
+            print("step:",step,"t1=",np.sum(np.abs(term1/self.tau_num))," t2=",np.sum(np.abs(term2))," gradient=",np.sum(np.abs(grad)))
+            
             self.see_reward_plot()
-            print("t1=",np.sum(np.abs(term1/self.tau_num))," t2=",np.sum(np.abs(term2))," gradient=",np.sum(np.abs(grad)))
-        
-        print("updating..")    
+            self.gradient_history.append(np.sum(np.abs(grad)))
+            
+            if step>4:
+                if all(np.isclose(self.gradient_history[-2:],self.gradient_history[-4:-2],0.00001)):
+                    break
+
+        print(self.gradient_history)
+        return self.get_subgoal()
